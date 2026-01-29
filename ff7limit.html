@@ -2,119 +2,35 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>全部言えるかな？ゲーム FF7編</title>
+    <title>全部言えるかな？ゲーム FF7リミット技</title>
     <style>
-        body { 
-            font-family: 'Helvetica Neue', Arial, sans-serif; 
-            text-align: center; 
-            padding: 20px; 
-            background: linear-gradient(135deg, #000080 0%, #000040 50%, #000000 100%);
-            background-attachment: fixed;
-            color: white;
-            margin: 0;
-        }
-
-        .container { 
-            max-width: 1000px; 
-            margin: 20px auto; 
-            background: rgba(0, 0, 128, 0.7); 
-            padding: 20px; 
-            border-radius: 10px; 
-            border: 3px double #ffffff; 
-            box-shadow: 0 0 15px rgba(0,0,0,0.5); 
-        }
-
-        .sticky-header {
-            position: sticky;
-            top: 0;
-            background: rgba(0, 0, 80, 0.95); 
-            padding: 20px 0;
-            z-index: 100;
-            border-bottom: 2px solid rgba(255,255,255,0.3);
-            margin-bottom: 20px;
-        }
-
+        /* スタイル部分は変更なしのため維持 */
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; text-align: center; padding: 20px; background: linear-gradient(135deg, #000080 0%, #000040 50%, #000000 100%); background-attachment: fixed; color: white; margin: 0; }
+        .container { max-width: 1500px; margin: 20px auto; background: rgba(0, 0, 128, 0.7); padding: 20px; border-radius: 10px; border: 3px double #ffffff; box-shadow: 0 0 15px rgba(0,0,0,0.5); }
+        .sticky-header { position: sticky; top: 0; background: rgba(0, 0, 80, 0.95); padding: 20px 0; z-index: 100; border-bottom: 2px solid rgba(255,255,255,0.3); margin-bottom: 20px; }
         h2 { margin: 0; color: #ffffff; text-shadow: 2px 2px 4px #000; }
-
         .status { margin: 10px 0; font-weight: bold; font-size: 1.2em; color: #fff; }
-
         #message { height: 24px; font-weight: bold; margin-bottom: 10px; }
-
-        input { 
-            font-size: 18px; 
-            padding: 10px; 
-            width: 40%; 
-            border: 2px solid #fff; 
-            border-radius: 5px; 
-            outline: none; 
-            background: #000; 
-            color: #fff;
-        }
-
-        .btn {
-            padding: 10px 20px;
-            font-size: 16px;
-            cursor: pointer;
-            border-radius: 5px;
-            border: 1px solid #fff;
-            background: #000080;
-            color: white;
-            transition: 0.3s;
-            vertical-align: middle;
-        }
+        input { font-size: 18px; padding: 10px; width: 40%; border: 2px solid #fff; border-radius: 5px; outline: none; background: #000; color: #fff; }
+        .btn { padding: 10px 20px; font-size: 16px; cursor: pointer; border-radius: 5px; border: 1px solid #fff; background: #000080; color: white; transition: 0.3s; vertical-align: middle; }
         .btn:hover { background: #0000ff; }
-
-        .list { 
-            display: grid; 
-            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); 
-            gap: 12px; 
-            margin-top: 20px; 
-        }
-
-        .item { 
-            padding: 10px 5px; 
-            background: rgba(255, 255, 255, 0.1); 
-            border-radius: 5px; 
-            color: #aaa; 
-            border: 1px solid rgba(255, 255, 255, 0.3); 
-            font-size: 14px; 
-            display: flex;
-            flex-direction: column; /* 上下並びにする設定 */
-            align-items: center;
-            justify-content: center;
-            min-height: 50px;
-            word-break: break-all;
-            font-weight: bold; 
-        }
-
-        /* 2段表示用のスタイル */
+        .list { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-top: 20px; }
+        .item { padding: 10px 5px; background: rgba(255, 255, 255, 0.1); border-radius: 5px; color: #aaa; border: 1px solid rgba(255, 255, 255, 0.3); font-size: 14px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 50px; word-break: break-all; font-weight: bold; }
         .hint-text { font-size: 0.85em; margin-bottom: 4px; color: #ccc; }
         .answer-text { font-size: 1.05em; }
-
-        .item.found { 
-            background: #0078d7; 
-            color: white; 
-            border-color: #fff; 
-            box-shadow: 0 0 10px #0078d7; 
-        }
+        .item.found { background: #0078d7; color: white; border-color: #fff; box-shadow: 0 0 10px #0078d7; }
         .item.found .hint-text { color: #e0e0e0; }
-
-        .item.missed { 
-            background: #000030; 
-            border-color: #fff; 
-        }
-        .item.missed .answer-text { color: #ff4444; } /* 未回答の答えを赤字に */
-
+        .item.missed { background: #000030; border-color: #fff; }
+        .item.missed .answer-text { color: #ff4444; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="sticky-header">
-        <h2>技の名前いえるかな FF7編</h2>
+        <h2>FF7 リミット技の名前いえるかな</h2>
         <div class="status">あと <span id="remaining">--</span> / <span id="total">--</span></div>
         <div id="message"></div>
-        
         <input type="text" id="answerInput" placeholder="" autofocus autocomplete="off">
         <button class="btn giveup-btn" id="giveupBtn">ギブアップ</button>
         <button class="btn retry-btn" id="retryBtn" style="display:none;">もう一度遊ぶ</button>
@@ -125,10 +41,12 @@
 <script>
     const config = {
         placeholderNormal: "技名を入力してEnter",
-        placeholderGameOver: "お疲れ様でした！"
+        placeholderGameOver: "お疲れ様でした！",
+        storageKey: "quiz_save_" + document.title // ページタイトルをキーにする
     };
 
     const quizData = [
+        /* ... 技名データ (元のコードと同じなので中身は省略) ... */
         { display: "ブレイバー", accept: ["ブレイバー", "ぶれいばー"], hint: "クラウド" },
         { display: "凶斬り", accept: ["凶斬り", "きょうぎり"], hint: "クラウド" },
         { display: "破晄撃", accept: ["破晄撃", "はこうげき"], hint: "クラウド" },
@@ -138,7 +56,7 @@
         { display: "超究武神覇斬", accept: ["超究武神覇斬", "ちょうきゅうぶしんはざん"], hint: "クラウド" },
         { display: "掌打ラッシュ", accept: ["掌打ラッシュ", "しょうだらっしゅ"], hint: "ティファ" },
         { display: "サマーソルト", accept: ["サマーソルト", "さまーそると"], hint: "ティファ" },
-        { display: "水面蹴り", accept: ["水面蹴り", "みなもぎり"], hint: "ティファ" },
+        { display: "水面蹴り", accept: ["水面蹴り", "すいめんげり"], hint: "ティファ" },
         { display: "メテオドライヴ", accept: ["メテオドライヴ", "めておどらいぶ"], hint: "ティファ" },
         { display: "ドルフィンブロウ", accept: ["ドルフィンブロウ", "どらふぃんぶろう"], hint: "ティファ" },
         { display: "メテオストライク", accept: ["メテオストライク", "めておすとらいく"], hint: "ティファ" },
@@ -171,6 +89,7 @@
         { display: "鎧袖一触", accept: ["鎧袖一触", "がいしゅういっしょく"], hint: "ユフィ" },
         { display: "生者必滅", accept: ["生者必滅", "せいじゃひつめつ"], hint: "ユフィ" },
         { display: "森羅万象", accept: ["森羅万象", "しんらばんしょう"], hint: "ユフィ" },
+        { display: "ダイス", accept: ["ダイス", "だいす"], hint: "ケット・シー" },
         { display: "トイボックス", accept: ["トイボックス", "といぼっくす"], hint: "ケット・シー" },
         { display: "合体", accept: ["合体", "がったい"], hint: "ケット・シー" },
         { display: "モーグリダンス", accept: ["モーグリダンス", "もーぐりだんす"], hint: "ケット・シー" },
@@ -179,6 +98,10 @@
         { display: "ランダム召喚", accept: ["ランダム召喚", "らんだむしょうかん"], hint: "ケット・シー" },
         { display: "ジョーカーデス", accept: ["ジョーカーデス", "じょーかーです"], hint: "ケット・シー" },
         { display: "オールオーバー", accept: ["オールオーバー", "おーるおーばー"], hint: "ケット・シー" },
+        { display: "ガリアンビースト", accept: ["ガリアンビースト", "がりあんびーすと"], hint: "ヴィンセント" },
+        { display: "デスギガス", accept: ["デスギガス", "ですぎがす"], hint: "ヴィンセント" },
+        { display: "ヘルマスカー", accept: ["ヘルマスカー", "へるますかー"], hint: "ヴィンセント" },
+        { display: "カオス", accept: ["カオス", "かおす"], hint: "ヴィンセント" },
         { display: "バーサクダンス", accept: ["バーサクダンス", "ばーさくだんす"], hint: "ヴィンセント" },
         { display: "ビーストフレア", accept: ["ビーストフレア", "びーすとふれあ"], hint: "ヴィンセント" },
         { display: "ギガダンク", accept: ["ギガダンク", "ぎがだんく"], hint: "ヴィンセント" },
@@ -198,7 +121,7 @@
 
     let foundCount = 0;
     let isGameOver = false;
-    const answeredIndices = new Set();
+    let answeredIndices = new Set();
 
     const input = document.getElementById('answerInput');
     const remainingText = document.getElementById('remaining');
@@ -222,14 +145,50 @@
         totalText.textContent = quizData.length;
         messageEl.textContent = '';
 
+        // リスト生成
         quizData.forEach((item, index) => {
             const div = document.createElement('div');
             div.className = 'item';
             div.id = 'target-' + index;
-            // 初期表示はヒントのみ（中央表示）
             div.innerHTML = `<div class="answer-text">${item.hint}</div>`;
             listContainer.appendChild(div);
         });
+
+        // 保存されたデータの読み込み
+        loadProgress();
+    }
+
+    // セーブデータを読み込む
+    function loadProgress() {
+        const savedData = localStorage.getItem(config.storageKey);
+        if (savedData) {
+            const savedIndices = JSON.parse(savedData);
+            savedIndices.forEach(index => {
+                if (index < quizData.length) {
+                    answeredIndices.add(index);
+                    updateItemDisplay(index, true);
+                    foundCount++;
+                }
+            });
+            remainingText.textContent = quizData.length - foundCount;
+            if (foundCount > 0) {
+                showMessage("続きから開始します", "#4caf50");
+            }
+            if (foundCount === quizData.length) {
+                finishGame("全問正解済みです！", "#ff9800");
+            }
+        }
+    }
+
+    // セーブデータを保存する
+    function saveProgress() {
+        const dataArray = Array.from(answeredIndices);
+        localStorage.setItem(config.storageKey, JSON.stringify(dataArray));
+    }
+
+    // セーブデータを消去する
+    function clearProgress() {
+        localStorage.removeItem(config.storageKey);
     }
 
     input.addEventListener('keypress', (e) => {
@@ -247,6 +206,9 @@
                     foundCount++;
                     remainingText.textContent = quizData.length - foundCount;
                     showMessage("正解！", "#4caf50");
+                    
+                    saveProgress(); // 正解するたびに保存
+
                     if (foundCount === quizData.length) {
                         finishGame("全問正解！おめでとう！", "#ff9800");
                     }
@@ -258,7 +220,6 @@
         }
     });
 
-    // 表示を更新する関数（2段にする）
     function updateItemDisplay(index, isCorrect) {
         const targetEl = document.getElementById('target-' + index);
         const data = quizData[index];
@@ -278,7 +239,12 @@
         finishGame("終了！答え合わせです", "#ffffff");
     });
 
-    retryBtn.addEventListener('click', init);
+    retryBtn.addEventListener('click', () => {
+        if(confirm("進行状況をリセットして最初から遊びますか？")) {
+            clearProgress();
+            init();
+        }
+    });
 
     function revealAllAnswers() {
         quizData.forEach((item, index) => {
