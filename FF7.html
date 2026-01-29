@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>全部言えるかな？ゲーム FF7編</title>
+    <style>
+        body { 
+            font-family: 'Helvetica Neue', Arial, sans-serif; 
+            text-align: center; 
+            padding: 20px; 
+            background: linear-gradient(135deg, #000080 0%, #000040 50%, #000000 100%);
+            background-attachment: fixed;
+            color: white;
+            margin: 0;
+        }
+
+        .container { 
+            max-width: 1000px; 
+            margin: 20px auto; 
+            background: rgba(0, 0, 128, 0.7); 
+            padding: 20px; 
+            border-radius: 10px; 
+            border: 3px double #ffffff; 
+            box-shadow: 0 0 15px rgba(0,0,0,0.5); 
+        }
+
+        .sticky-header {
+            position: sticky;
+            top: 0;
+            background: rgba(0, 0, 80, 0.95); 
+            padding: 20px 0;
+            z-index: 100;
+            border-bottom: 2px solid rgba(255,255,255,0.3);
+            margin-bottom: 20px;
+        }
+
+        h2 { margin: 0; color: #ffffff; text-shadow: 2px 2px 4px #000; }
+
+        .status { margin: 10px 0; font-weight: bold; font-size: 1.2em; color: #fff; }
+
+        #message { height: 24px; font-weight: bold; margin-bottom: 10px; }
+
+        input { 
+            font-size: 18px; 
+            padding: 10px; 
+            width: 40%; 
+            border: 2px solid #fff; 
+            border-radius: 5px; 
+            outline: none; 
+            background: #000; 
+            color: #fff;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            border: 1px solid #fff;
+            background: #000080;
+            color: white;
+            transition: 0.3s;
+            vertical-align: middle;
+        }
+        .btn:hover { background: #0000ff; }
+
+        .list { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); 
+            gap: 12px; 
+            margin-top: 20px; 
+        }
+
+        .item { 
+            padding: 10px 5px; 
+            background: rgba(255, 255, 255, 0.1); 
+            border-radius: 5px; 
+            color: #aaa; 
+            border: 1px solid rgba(255, 255, 255, 0.3); 
+            font-size: 14px; 
+            display: flex;
+            flex-direction: column; /* 上下並びにする設定 */
+            align-items: center;
+            justify-content: center;
+            min-height: 50px;
+            word-break: break-all;
+            font-weight: bold; 
+        }
+
+        /* 2段表示用のスタイル */
+        .hint-text { font-size: 0.85em; margin-bottom: 4px; color: #ccc; }
+        .answer-text { font-size: 1.05em; }
+
+        .item.found { 
+            background: #0078d7; 
+            color: white; 
+            border-color: #fff; 
+            box-shadow: 0 0 10px #0078d7; 
+        }
+        .item.found .hint-text { color: #e0e0e0; }
+
+        .item.missed { 
+            background: #000030; 
+            border-color: #fff; 
+        }
+        .item.missed .answer-text { color: #ff4444; } /* 未回答の答えを赤字に */
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="sticky-header">
+        <h2>技の名前いえるかな FF7編</h2>
+        <div class="status">あと <span id="remaining">--</span> / <span id="total">--</span></div>
+        <div id="message"></div>
+        
+        <input type="text" id="answerInput" placeholder="" autofocus autocomplete="off">
+        <button class="btn giveup-btn" id="giveupBtn">ギブアップ</button>
+        <button class="btn retry-btn" id="retryBtn" style="display:none;">もう一度遊ぶ</button>
+    </div>
+    <div class="list" id="answerList"></div>
+</div>
+
+<script>
+    const config = {
+        placeholderNormal: "技名を入力してEnter",
+        placeholderGameOver: "お疲れ様でした！"
+    };
+
+    const quizData = [
+        { display: "ブレイバー", accept: ["ブレイバー", "ぶれいばー"], hint: "クラウド" },
+        { display: "凶斬り", accept: ["凶斬り", "きょうぎり"], hint: "クラウド" },
+        { display: "破晄撃", accept: ["破晄撃", "はこうげき"], hint: "クラウド" },
+        { display: "クライムハザード", accept: ["クライムハザード", "くらいむはざーど"], hint: "クラウド" },
+        { display: "メテオレイン", accept: ["メテオレイン", "めておれいん"], hint: "クラウド" },
+        { display: "画龍点睛", accept: ["画龍点睛", "がりょうてんせい"], hint: "クラウド" },
+        { display: "超究武神覇斬", accept: ["超究武神覇斬", "ちょうきゅうぶしんはざん"], hint: "クラウド" },
+        { display: "掌打ラッシュ", accept: ["掌打ラッシュ", "しょうだらっしゅ"], hint: "ティファ" },
+        { display: "サマーソルト", accept: ["サマーソルト", "さまーそると"], hint: "ティファ" },
+        { display: "水面蹴り", accept: ["水面蹴り", "みなもぎり"], hint: "ティファ" },
+        { display: "メテオドライヴ", accept: ["メテオドライヴ", "めておどらいぶ"], hint: "ティファ" },
+        { display: "ドルフィンブロウ", accept: ["ドルフィンブロウ", "どらふぃんぶろう"], hint: "ティファ" },
+        { display: "メテオストライク", accept: ["メテオストライク", "めておすとらいく"], hint: "ティファ" },
+        { display: "ファイナルヘヴン", accept: ["ファイナルヘヴン", "ふぁいなるへゔん", "ふぁいなるへヴん"], hint: "ティファ" },
+        { display: "癒しの風", accept: ["癒しの風", "いやしのかぜ"], hint: "エアリス" },
+        { display: "邪気封印", accept: ["邪気封印", "じゃきふういん"], hint: "エアリス" },
+        { display: "大地の息吹", accept: ["大地の息吹", "だいちのいぶき"], hint: "エアリス" },
+        { display: "怒りの烙印", accept: ["怒りの烙印", "いかりのらくいん"], hint: "エアリス" },
+        { display: "星の守護", accept: ["星の守護", "ほしのしゅご"], hint: "エアリス" },
+        { display: "生命の鼓動", accept: ["生命の鼓動", "せいめいのこどう"], hint: "エアリス" },
+        { display: "大いなる福音", accept: ["大いなる福音", "おおいなるふくいん"], hint: "エアリス" },
+        { display: "ヘビーショット", accept: ["ヘビーショット", "へびーしょっと"], hint: "バレット" },
+        { display: "マインドブレイク", accept: ["マインドブレイク", "まいんどぶれいく"], hint: "バレット" },
+        { display: "グレネードボム", accept: ["グレネードボム", "ぐれねーどぼむ"], hint: "バレット" },
+        { display: "ハンマーブロウ", accept: ["ハンマーブロウ", "はんまーぶろう"], hint: "バレット" },
+        { display: "サテライトビーム", accept: ["サテライトビーム", "さてらいとびーむ"], hint: "バレット" },
+        { display: "アンガーマックス", accept: ["アンガーマックス", "あんがーまっくす"], hint: "バレット" },
+        { display: "カタストロフィ", accept: ["カタストロフィ", "かたすとろふぃ"], hint: "バレット" },
+        { display: "スレッドファング", accept: ["スレッドファング", "すれっどふぁんぐ"], hint: "レッドXIII" },
+        { display: "ルナティックハイ", accept: ["ルナティックハイ", "るなてぃっくはい"], hint: "レッドXIII" },
+        { display: "ブラッドファング", accept: ["ブラッドファング", "ぶらっどふぁんぐ"], hint: "レッドXIII" },
+        { display: "スターダストレイ", accept: ["スターダストレイ", "すたーだすとれい"], hint: "レッドXIII" },
+        { display: "ハウリングムーン", accept: ["ハウリングムーン", "はうりんぐむーん"], hint: "レッドXIII" },
+        { display: "アースレイヴ", accept: ["アースレイヴ", "あーすれいゔ", "あーすれいヴ"], hint: "レッドXIII" },
+        { display: "コスモメモリー", accept: ["コスモメモリー", "こすもめもりー"], hint: "レッドXIII" },
+        { display: "疾風迅雷", accept: ["疾風迅雷", "しっぷうじんらい"], hint: "ユフィ" },
+        { display: "明鏡止水", accept: ["明鏡止水", "めいきょうしすい"], hint: "ユフィ" },
+        { display: "抜山蓋世", accept: ["抜山蓋世", "ばつざんがいせい"], hint: "ユフィ" },
+        { display: "血祭", accept: ["血祭", "ちまつり"], hint: "ユフィ" },
+        { display: "鎧袖一触", accept: ["鎧袖一触", "がいしゅういっしょく"], hint: "ユフィ" },
+        { display: "生者必滅", accept: ["生者必滅", "せいじゃひつめつ"], hint: "ユフィ" },
+        { display: "森羅万象", accept: ["森羅万象", "しんらばんしょう"], hint: "ユフィ" },
+        { display: "トイボックス", accept: ["トイボックス", "といぼっくす"], hint: "ケット・シー" },
+        { display: "合体", accept: ["合体", "がったい"], hint: "ケット・シー" },
+        { display: "モーグリダンス", accept: ["モーグリダンス", "もーぐりだんす"], hint: "ケット・シー" },
+        { display: "トイソルジャー", accept: ["トイソルジャー", "といそるじゃー"], hint: "ケット・シー" },
+        { display: "ラッキーガール", accept: ["ラッキーガール", "らっきーがーる"], hint: "ケット・シー" },
+        { display: "ランダム召喚", accept: ["ランダム召喚", "らんだむしょうかん"], hint: "ケット・シー" },
+        { display: "ジョーカーデス", accept: ["ジョーカーデス", "じょーかーです"], hint: "ケット・シー" },
+        { display: "オールオーバー", accept: ["オールオーバー", "おーるおーばー"], hint: "ケット・シー" },
+        { display: "バーサクダンス", accept: ["バーサクダンス", "ばーさくだんす"], hint: "ヴィンセント" },
+        { display: "ビーストフレア", accept: ["ビーストフレア", "びーすとふれあ"], hint: "ヴィンセント" },
+        { display: "ギガダンク", accept: ["ギガダンク", "ぎがだんく"], hint: "ヴィンセント" },
+        { display: "ライブスパーク", accept: ["ライブスパーク", "らいぶすぱーく"], hint: "ヴィンセント" },
+        { display: "スプラッタコンボ", accept: ["スプラッタコンボ", "すぷらったこんぼ"], hint: "ヴィンセント" },
+        { display: "ナイトメア", accept: ["ナイトメア", "ないとめあ"], hint: "ヴィンセント" },
+        { display: "カオスセイバー", accept: ["カオスセイバー", "かおすせいばー"], hint: "ヴィンセント" },
+        { display: "サタンインパクト", accept: ["サタンインパクト", "さたんいんぱくと"], hint: "ヴィンセント" },
+        { display: "ブーストジャンプ", accept: ["ブーストジャンプ", "ぶーすとじゃんぷ"], hint: "シド" },
+        { display: "ダイナマイト", accept: ["ダイナマイト", "だいなまいと"], hint: "シド" },
+        { display: "ハイパージャンプ", accept: ["ハイパージャンプ", "はいぱーじゃんぷ"], hint: "シド" },
+        { display: "ドラゴンモッド", accept: ["ドラゴンモッド", "どらごんもっど"], hint: "シド" },
+        { display: "ドラゴンダイヴ", accept: ["ドラゴンダイヴ", "どらごんだいゔ", "どらごんだいヴ"], hint: "シド" },
+        { display: "大乱闘", accept: ["大乱闘", "だいらんとう"], hint: "シド" },
+        { display: "ハイウインド", accept: ["ハイウインド", "はいういんど"], hint: "シド" },
+    ];
+
+    let foundCount = 0;
+    let isGameOver = false;
+    const answeredIndices = new Set();
+
+    const input = document.getElementById('answerInput');
+    const remainingText = document.getElementById('remaining');
+    const totalText = document.getElementById('total');
+    const listContainer = document.getElementById('answerList');
+    const messageEl = document.getElementById('message');
+    const giveupBtn = document.getElementById('giveupBtn');
+    const retryBtn = document.getElementById('retryBtn');
+
+    function init() {
+        foundCount = 0;
+        isGameOver = false;
+        answeredIndices.clear();
+        listContainer.innerHTML = '';
+        input.disabled = false;
+        input.value = '';
+        input.placeholder = config.placeholderNormal;
+        giveupBtn.style.display = 'inline-block';
+        retryBtn.style.display = 'none';
+        remainingText.textContent = quizData.length;
+        totalText.textContent = quizData.length;
+        messageEl.textContent = '';
+
+        quizData.forEach((item, index) => {
+            const div = document.createElement('div');
+            div.className = 'item';
+            div.id = 'target-' + index;
+            // 初期表示はヒントのみ（中央表示）
+            div.innerHTML = `<div class="answer-text">${item.hint}</div>`;
+            listContainer.appendChild(div);
+        });
+    }
+
+    input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !isGameOver) {
+            const val = input.value.trim();
+            if (val === "") return;
+            let targetIndex = quizData.findIndex(item => item.accept.includes(val));
+
+            if (targetIndex !== -1) {
+                if (answeredIndices.has(targetIndex)) {
+                    showMessage("それはもう答えたよ！", "#ffcc00");
+                } else {
+                    answeredIndices.add(targetIndex);
+                    updateItemDisplay(targetIndex, true);
+                    foundCount++;
+                    remainingText.textContent = quizData.length - foundCount;
+                    showMessage("正解！", "#4caf50");
+                    if (foundCount === quizData.length) {
+                        finishGame("全問正解！おめでとう！", "#ff9800");
+                    }
+                }
+            } else {
+                showMessage("不正解！", "#e91e63");
+            }
+            input.value = '';
+        }
+    });
+
+    // 表示を更新する関数（2段にする）
+    function updateItemDisplay(index, isCorrect) {
+        const targetEl = document.getElementById('target-' + index);
+        const data = quizData[index];
+        targetEl.innerHTML = `
+            <div class="hint-text">${data.hint}</div>
+            <div class="answer-text">${data.display}</div>
+        `;
+        if (isCorrect) {
+            targetEl.classList.add('found');
+        } else {
+            targetEl.classList.add('missed');
+        }
+    }
+
+    giveupBtn.addEventListener('click', () => {
+        revealAllAnswers();
+        finishGame("終了！答え合わせです", "#ffffff");
+    });
+
+    retryBtn.addEventListener('click', init);
+
+    function revealAllAnswers() {
+        quizData.forEach((item, index) => {
+            if (!answeredIndices.has(index)) {
+                updateItemDisplay(index, false);
+            }
+        });
+    }
+
+    function finishGame(msg, color) {
+        isGameOver = true;
+        input.disabled = true;
+        input.placeholder = config.placeholderGameOver;
+        input.value = '';
+        giveupBtn.style.display = 'none';
+        retryBtn.style.display = 'inline-block';
+        showMessage(msg, color);
+    }
+
+    function showMessage(text, color) {
+        messageEl.textContent = text;
+        messageEl.style.color = color;
+        if (!isGameOver) {
+            setTimeout(() => { if (messageEl.textContent === text) messageEl.textContent = ""; }, 1500);
+        }
+    }
+
+    init();
+</script>
+
+</body>
+</html>
