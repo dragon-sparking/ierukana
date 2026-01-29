@@ -3,134 +3,163 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>全部言えるかな？ゲームポータル</title>
+    <title>Quiz Portal | 全部言えるかな？</title>
     <style>
-        body { 
-            font-family: 'Helvetica Neue', Arial, sans-serif; 
-            background: linear-gradient(135deg, #000080 0%, #000040 50%, #000000 100%);
-            background-attachment: fixed;
-            color: white;
+        :root {
+            --primary-color: #2563eb;
+            --bg-color: #f8fafc;
+            --text-main: #1e293b;
+            --text-sub: #64748b;
+            --card-bg: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
             margin: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
+            line-height: 1.6;
         }
 
         header {
-            padding: 40px 20px;
+            background-color: #ffffff;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 2rem 1rem;
             text-align: center;
+            margin-bottom: 3rem;
         }
 
-        h1 {
-            font-size: 2.5em;
-            text-shadow: 3px 3px 6px #000;
-            border-bottom: 3px double #ffffff;
-            display: inline-block;
-            padding-bottom: 10px;
+        header h1 {
+            margin: 0;
+            font-size: 2rem;
+            letter-spacing: -0.025em;
+            color: var(--primary-color);
+        }
+
+        header p {
+            margin-top: 0.5rem;
+            color: var(--text-sub);
         }
 
         .container {
-            max-width: 1000px;
-            width: 90%;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 25px;
-            padding-bottom: 50px;
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 1.5rem 5rem;
         }
 
-        .game-card {
-            background: rgba(0, 0, 128, 0.6);
-            border: 2px solid #fff;
-            border-radius: 15px;
-            padding: 20px;
+        /* グリッドレイアウト */
+        .quiz-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        /* カードデザイン */
+        .quiz-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            overflow: hidden;
             text-decoration: none;
-            color: white;
-            transition: transform 0.3s, background 0.3s, box-shadow 0.3s;
+            color: inherit;
+            transition: all 0.25s ease;
+            border: 1px solid #e2e8f0;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
 
-        .game-card:hover {
-            transform: translateY(-5px);
-            background: rgba(0, 0, 200, 0.8);
-            box-shadow: 0 0 20px rgba(0, 120, 215, 0.6);
+        .quiz-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            border-color: var(--primary-color);
         }
 
-        .game-card h2 {
-            margin-top: 0;
-            font-size: 1.5em;
-            border-left: 5px solid #0078d7;
-            padding-left: 10px;
+        .card-content {
+            padding: 1.5rem;
+            flex-grow: 1;
         }
 
-        .game-card p {
-            font-size: 0.9em;
-            color: #ccc;
-            line-height: 1.5;
-            margin: 15px 0;
-        }
-
-        .play-btn {
-            align-self: flex-end;
-            background: #000;
-            border: 1px solid #fff;
-            padding: 8px 15px;
-            border-radius: 5px;
-            font-weight: bold;
-            font-size: 0.9em;
-        }
-
-        .footer {
-            margin-top: auto;
-            padding: 20px;
-            font-size: 0.8em;
-            color: rgba(255,255,255,0.5);
-        }
-
-        /* ジャンルバッジ */
-        .badge {
+        .category-tag {
             display: inline-block;
-            background: #e91e63;
-            color: white;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 0.7em;
-            margin-bottom: 10px;
+            background: #eff6ff;
+            color: var(--primary-color);
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+        }
+
+        .quiz-card h2 {
+            margin: 0 0 0.75rem 0;
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .quiz-card p {
+            margin: 0;
+            font-size: 0.95rem;
+            color: var(--text-sub);
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .card-footer {
+            padding: 1rem 1.5rem;
+            background-color: #f1f5f9;
+            border-top: 1px solid #e2e8f0;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--primary-color);
+            text-align: right;
+        }
+
+        @media (max-width: 640px) {
+            .quiz-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 <body>
 
 <header>
-    <h1>全部言えるかな？シリーズ</h1>
-    <p>あなたの知識の限界に挑戦しよう</p>
+    <h1>全部言えるかな</h1>
 </header>
 
 <div class="container">
-    <a href="ff7.html" class="game-card">
-        <div>
-            <span class="badge">RPG</span>
-            <h2>技の名前編：FF7</h2>
-            <p>クラウドやティファたちのリミット技をどれだけ覚えていますか？全65種類、目指せコンプリート！</p>
-        </div>
-        <div class="play-btn">START GAME</div>
-    </a>
+    <div class="quiz-grid">
+        
+        <a href="ff7.html" class="quiz-card">
+            <div class="card-content">
+                <span class="category-tag">Game</span>
+                <h2>FF7 技名チャレンジ</h2>
+                <p>クラウドたちのリミット技を全て答えられますか？全65種類の技を網羅した高難易度クイズ。</p>
+            </div>
+            <div class="card-footer">挑戦する →</div>
+        </a>
 
-    <a href="#" class="game-card" style="opacity: 0.7;">
-        <div>
-            <span class="badge" style="background: #4caf50;">COMING SOON</span>
-            <h2>モンスター編：FF7</h2>
-            <p>ミッドガルから北の大空洞まで。懐かしのモンスター名を当てよう。（準備中）</p>
-        </div>
-        <div class="play-btn">COMING SOON</div>
-    </a>
-</div>
+        <a href="#" class="quiz-card">
+            <div class="card-content">
+                <span class="category-tag" style="background:#fef2f2; color:#dc2626;">History</span>
+                <h2>日本の歴代首相</h2>
+                <p>伊藤博文から現代まで。日本の歴史を創ってきた歴代の内閣総理大臣をすべて答えよう。</p>
+            </div>
+            <div class="card-footer">Coming Soon</div>
+        </a>
 
-<div class="footer">
-    &copy; 2024 Challenge Quiz Games
+        <a href="#" class="quiz-card">
+            <div class="card-content">
+                <span class="category-tag" style="background:#f0fdf4; color:#16a34a;">Science</span>
+                <h2>元素周期表</h2>
+                <p>水素からオガネソンまで。科学の基本となる118個の元素名をどれだけ覚えているかテスト！</p>
+            </div>
+            <div class="card-footer">Coming Soon</div>
+        </a>
+
+    </div>
 </div>
 
 </body>
