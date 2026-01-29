@@ -11,6 +11,7 @@
             --text-main: #1e293b;
             --text-sub: #64748b;
             --card-bg: #ffffff;
+            --progress-bg: #e2e8f0;
         }
 
         body {
@@ -36,25 +37,18 @@
             color: var(--primary-color);
         }
 
-        header p {
-            margin-top: 0.5rem;
-            color: var(--text-sub);
-        }
-
         .container {
             max-width: 1100px;
             margin: 0 auto;
             padding: 0 1.5rem 5rem;
         }
 
-        /* グリッドレイアウト */
         .quiz-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
             gap: 2rem;
         }
 
-        /* カードデザイン */
         .quiz-card {
             background: var(--card-bg);
             border-radius: 12px;
@@ -100,26 +94,52 @@
             margin: 0;
             font-size: 0.95rem;
             color: var(--text-sub);
-            display: -webkit-box;
-            -webkit-line-clamp: 3;
-            -webkit-box-orient: vertical;
+            margin-bottom: 1.5rem;
+        }
+
+        /* --- 進捗表示用スタイル --- */
+        .progress-container {
+            margin-top: auto;
+            background: #f1f5f9;
+            padding: 1rem 1.5rem;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .progress-bar-bg {
+            width: 100%;
+            height: 8px;
+            background: var(--progress-bg);
+            border-radius: 4px;
             overflow: hidden;
         }
 
-        .card-footer {
-            padding: 1rem 1.5rem;
-            background-color: #f1f5f9;
-            border-top: 1px solid #e2e8f0;
-            font-size: 0.875rem;
-            font-weight: 600;
-            color: var(--primary-color);
-            text-align: right;
+        .progress-bar-fill {
+            height: 100%;
+            background: var(--primary-color);
+            width: 0%; /* JSで更新 */
+            transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
+        .status-text {
+            color: var(--text-sub);
+        }
+
+        .percent-text {
+            color: var(--primary-color);
+        }
+        /* ----------------------- */
+
         @media (max-width: 640px) {
-            .quiz-grid {
-                grid-template-columns: 1fr;
-            }
+            .quiz-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -132,35 +152,72 @@
 <div class="container">
     <div class="quiz-grid">
         
-        <a href="ff7limit.html" class="quiz-card">
+        <a href="ff7limit.html" class="quiz-card" data-quiz-key="全部言えるかな？ゲーム FF7編" data-total="70">
             <div class="card-content">
                 <span class="category-tag">Game</span>
-                <h2>FF7 リミット技いえるかな</h2>
-                <p>クラウドたちのリミット技を全て答えられますか？全65種類の技を網羅した高難易度クイズ。</p>
+                <h2>FF7 技名チャレンジ</h2>
+                <p>クラウドたちのリミット技を全て答えられますか？全65種類の技を網羅。</p>
             </div>
-            <div class="card-footer">挑戦する →</div>
+            <div class="progress-container">
+                <div class="progress-info">
+                    <span class="status-text">Progress: <span class="count-now">0</span>/70</span>
+                    <span class="percent-text">0%</span>
+                </div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill"></div>
+                </div>
+            </div>
         </a>
 
-        <a href="#" class="quiz-card">
+        <a href="#" class="quiz-card" data-quiz-key="全部言えるかな？日本の歴代首相" data-total="101">
             <div class="card-content">
                 <span class="category-tag" style="background:#fef2f2; color:#dc2626;">History</span>
                 <h2>日本の歴代首相</h2>
-                <p>伊藤博文から現代まで。日本の歴史を創ってきた歴代の内閣総理大臣をすべて答えよう。</p>
+                <p>伊藤博文から現代まで。日本の歴史を創ってきた内閣総理大臣をすべて答えよう。</p>
             </div>
-            <div class="card-footer">Coming Soon</div>
-        </a>
-
-        <a href="#" class="quiz-card">
-            <div class="card-content">
-                <span class="category-tag" style="background:#f0fdf4; color:#16a34a;">Science</span>
-                <h2>元素周期表</h2>
-                <p>水素からオガネソンまで。科学の基本となる118個の元素名をどれだけ覚えているかテスト！</p>
+            <div class="progress-container">
+                <div class="progress-info">
+                    <span class="status-text">Progress: <span class="count-now">0</span>/101</span>
+                    <span class="percent-text">0%</span>
+                </div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill"></div>
+                </div>
             </div>
-            <div class="card-footer">Coming Soon</div>
         </a>
 
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const cards = document.querySelectorAll('.quiz-card');
+
+        cards.forEach(card => {
+            const quizKey = card.getAttribute('data-quiz-key');
+            const total = parseInt(card.getAttribute('data-total'));
+            const storageKey = "quiz_save_" + quizKey;
+
+            // localStorageからデータを取得
+            const savedData = localStorage.getItem(storageKey);
+            
+            if (savedData) {
+                try {
+                    const answeredIndices = JSON.parse(savedData);
+                    const count = answeredIndices.length;
+                    const percent = Math.floor((count / total) * 100);
+
+                    // 表示の更新
+                    card.querySelector('.count-now').textContent = count;
+                    card.querySelector('.percent-text').textContent = percent + "%";
+                    card.querySelector('.progress-bar-fill').style.width = percent + "%";
+                } catch (e) {
+                    console.error("データの読み込みに失敗しました", e);
+                }
+            }
+        });
+    });
+</script>
 
 </body>
 </html>
