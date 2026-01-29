@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>全部言えるかな？ゲームポータル</title>
+    <style>
+        body { 
+            font-family: 'Helvetica Neue', Arial, sans-serif; 
+            background: linear-gradient(135deg, #000080 0%, #000040 50%, #000000 100%);
+            background-attachment: fixed;
+            color: white;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        header {
+            padding: 40px 20px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            text-shadow: 3px 3px 6px #000;
+            border-bottom: 3px double #ffffff;
+            display: inline-block;
+            padding-bottom: 10px;
+        }
+
+        .container {
+            max-width: 1000px;
+            width: 90%;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            padding-bottom: 50px;
+        }
+
+        .game-card {
+            background: rgba(0, 0, 128, 0.6);
+            border: 2px solid #fff;
+            border-radius: 15px;
+            padding: 20px;
+            text-decoration: none;
+            color: white;
+            transition: transform 0.3s, background 0.3s, box-shadow 0.3s;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        .game-card:hover {
+            transform: translateY(-5px);
+            background: rgba(0, 0, 200, 0.8);
+            box-shadow: 0 0 20px rgba(0, 120, 215, 0.6);
+        }
+
+        .game-card h2 {
+            margin-top: 0;
+            font-size: 1.5em;
+            border-left: 5px solid #0078d7;
+            padding-left: 10px;
+        }
+
+        .game-card p {
+            font-size: 0.9em;
+            color: #ccc;
+            line-height: 1.5;
+            margin: 15px 0;
+        }
+
+        .play-btn {
+            align-self: flex-end;
+            background: #000;
+            border: 1px solid #fff;
+            padding: 8px 15px;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+
+        .footer {
+            margin-top: auto;
+            padding: 20px;
+            font-size: 0.8em;
+            color: rgba(255,255,255,0.5);
+        }
+
+        /* ジャンルバッジ */
+        .badge {
+            display: inline-block;
+            background: #e91e63;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.7em;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>全部言えるかな？シリーズ</h1>
+    <p>あなたの知識の限界に挑戦しよう</p>
+</header>
+
+<div class="container">
+    <a href="ff7.html" class="game-card">
+        <div>
+            <span class="badge">RPG</span>
+            <h2>技の名前編：FF7</h2>
+            <p>クラウドやティファたちのリミット技をどれだけ覚えていますか？全65種類、目指せコンプリート！</p>
+        </div>
+        <div class="play-btn">START GAME</div>
+    </a>
+
+    <a href="#" class="game-card" style="opacity: 0.7;">
+        <div>
+            <span class="badge" style="background: #4caf50;">COMING SOON</span>
+            <h2>モンスター編：FF7</h2>
+            <p>ミッドガルから北の大空洞まで。懐かしのモンスター名を当てよう。（準備中）</p>
+        </div>
+        <div class="play-btn">COMING SOON</div>
+    </a>
+</div>
+
+<div class="footer">
+    &copy; 2024 Challenge Quiz Games
+</div>
+
+</body>
+</html>
