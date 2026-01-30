@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>週刊少年ジャンプ作品 国内累計発行部数ランキング</title>
+    <style>
+        /* モノクロ漫画テーマ */
+        :root {
+            --bg-color: #f2f2f2;
+            --ink-black: #1a1a1a;
+            --paper-white: #ffffff;
+            --tone-gray: #d0d0d0;
+        }
+
+        body {
+            font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", sans-serif;
+            text-align: center;
+            background-color: var(--bg-color);
+            color: var(--ink-black);
+            margin: 0;
+            padding: 20px;
+        }
+
+        /* 原稿用紙風コンテナ */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: var(--paper-white);
+            padding: 30px;
+            border: 2px solid var(--ink-black);
+            box-shadow: 10px 10px 0px var(--ink-black);
+            position: relative;
+        }
+
+        /* ヘッダー */
+        .sticky-header {
+            position: sticky;
+            top: 0;
+            background: var(--paper-white);
+            padding-bottom: 20px;
+            z-index: 100;
+            border-bottom: 4px double var(--ink-black);
+            margin-bottom: 30px;
+        }
+
+        h2 {
+            margin: 0 0 15px 0;
+            font-size: 28px;
+            font-weight: 900;
+            text-transform: uppercase;
+            border-left: 10px solid var(--ink-black);
+            padding-left: 15px;
+            text-align: left;
+        }
+
+        /* シンプルなプログレスバー */
+        .gauge-flex-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            max-width: 600px;
+            margin: 10px 0;
+        }
+
+        .limit-gauge-outer {
+            flex-grow: 1;
+            height: 12px;
+            background: var(--paper-white);
+            border: 2px solid var(--ink-black);
+            position: relative;
+        }
+
+        #limitFill {
+            height: 100%;
+            width: 0%;
+            background: var(--ink-black);
+            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .limit-label {
+            font-size: 16px;
+            font-weight: bold;
+            min-width: 70px;
+            text-align: right;
+        }
+
+        .status {
+            font-size: 1.2em;
+            text-align: left;
+            margin: 5px 0;
+            font-weight: bold;
+        }
+
+        #message { 
+            height: 30px; 
+            margin: 10px 0; 
+            font-weight: bold; 
+            font-size: 1.1em;
+            text-align: left;
+        }
+
+        /* 入力エリア */
+        input {
+            font-size: 18px;
+            padding: 12px;
+            width: 100%;
+            box-sizing: border-box;
+            background: var(--paper-white);
+            color: var(--ink-black);
+            border: 2px solid var(--ink-black);
+            outline: none;
+            margin-bottom: 15px;
+        }
+
+        input:focus {
+            background: #fafafa;
+            box-shadow: inset 4px 4px 0 rgba(0,0,0,0.05);
+        }
+
+        /* ボタン */
+        .btn-container {
+            text-align: left;
+        }
+
+        .btn {
+            padding: 10px 25px;
+            background: var(--ink-black);
+            color: var(--paper-white);
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            transition: transform 0.1s;
+        }
+
+        .btn:active { transform: scale(0.95); }
+        .btn:hover { opacity: 0.8; }
+
+        /* リストレイアウト */
+        .list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 0;
+            border-top: 1px solid var(--ink-black);
+            border-left: 1px solid var(--ink-black);
+        }
+
+        .item {
+            background: var(--paper-white);
+            border-right: 1px solid var(--ink-black);
+            border-bottom: 1px solid var(--ink-black);
+            padding: 15px 10px;
+            min-height: 80px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            position: relative;
+        }
+
+        /* 正解時：網点トーン風の背景 */
+        .item.found {
+            background-color: #fff;
+            background-image: radial-gradient(var(--tone-gray) 15%, transparent 16%);
+            background-size: 4px 4px;
+        }
+
+        .info-row {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-bottom: 8px;
+        }
+
+        .hint-text {
+            background: var(--ink-black);
+            color: var(--paper-white);
+            font-size: 10px;
+            padding: 2px 6px;
+            display: inline-block;
+        }
+
+        .sales-text {
+            font-size: 11px;
+            font-weight: bold;
+            color: transparent; /* 未発見時は隠す */
+        }
+
+        .found .sales-text, .missed .sales-text {
+            color: #d32f2f; /* 発行部数は少し目立つ色に（お好みで変えてください） */
+        }
+
+        .answer-text {
+            font-size: 16px;
+            font-weight: bold;
+            color: transparent; /* 未発見時は隠す */
+            line-height: 1.2;
+        }
+
+        .found .answer-text {
+            color: var(--ink-black);
+            background: white;
+            padding: 0 4px;
+        }
+
+        /* ミスした時（答え合わせ） */
+        .item.missed {
+            background: #eeeeee;
+        }
+
+        .item.missed .answer-text {
+            color: #777;
+            text-decoration: line-through;
+        }
+
+        /* 完了時のアニメーション */
+        @keyframes master-flash {
+            0% { background-color: var(--paper-white); }
+            50% { background-color: #ffff00; }
+            100% { background-color: var(--paper-white); }
+        }
+        .limit-max {
+            animation: master-flash 0.5s infinite;
+        }
+
+        /* スマホ対応 */
+        @media (max-width: 600px) {
+            .list { grid-template-columns: 1fr 1fr; }
+            h2 { font-size: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="sticky-header">
+        <h2>週刊少年ジャンプ作品 国内累計発行部数ランキング</h2>
+        
+        <div class="status">残り: <span id="remaining">--</span> / <span id="total">--</span></div>
+        
+        <div class="gauge-flex-container" id="gaugeWrapper">
+            <div class="limit-gauge-outer">
+                <div id="limitFill"></div>
+            </div>
+            <div class="limit-label" id="progressPercent">0%</div> 
+        </div>
+
+        <div id="message"></div>
+        <input type="text" id="answerInput" placeholder="作品名を入力..." autofocus autocomplete="off">
+        
+        <div class="btn-container">
+            <button class="btn giveup-btn" id="giveupBtn">GIVE UP (回答表示)</button>
+            <button class="btn retry-btn" id="retryBtn" style="display:none;">RETRY (リセット)</button>
+        </div>
+    </div>
+    <div class="list" id="answerList"></div>
+</div>
+
+<script>
+    const config = {
+        placeholderNormal: "作品名を入力してください",
+        placeholderGameOver: "GAME OVER",
+        storageKey: "quiz_save_" + document.title
+    };
+
+    const quizData = [
+        { display: "ONE PIECE", accept: ["ONE PIECE", "ワンピース", "わんぴーす"], hint: "1位", sales: "約4億4585.4万部" },
+        { display: "鬼滅の刃", accept: ["鬼滅の刃", "きめつのやいば"], hint: "2位", sales: "約1億6400万部" },
+        { display: "DRAGON BALL", accept: ["DRAGON BALL", "ドラゴンボール", "どらごんぼーる"], hint: "3位", sales: "約1億6000万部" },
+        { display: "こちら葛飾区亀有公園前派出所", accept: ["こちら葛飾区亀有公園前派出所", "こち亀", "こちかめ", "こちらかつしかくかめありこうえんまえはしゅつじょ"], hint: "4位", sales: "約1億5720万部" },
+        { display: "NARUTOーナルトー", accept: ["NARUTO", "ナルト", "なると"], hint: "5位", sales: "約1億5300万部" },
+        { display: "SLAM DUNK", accept: ["SLAM DUNK", "スラムダンク", "すらむだんく"], hint: "6位", sales: "約1億2136万部" },
+        { display: "ジョジョの奇妙な冒険 シリーズ", accept: ["ジョジョの奇妙な冒険", "ジョジョ", "じょじょ", "じょじょのきみょうなぼうけん"], hint: "7位", sales: "約1億部" },
+        { display: "呪術廻戦", accept: ["呪術廻戦", "じゅじゅつかいせん"], hint: "7位", sales: "約1億部" },
+        { display: "BLEACH", accept: ["BLEACH", "ブリーチ", "ぶりーち"], hint: "9位", sales: "約9000万部" },
+        { display: "キャプテン翼 シリーズ", accept: ["キャプテン翼", "きゃぷてんつばさ"], hint: "9位", sales: "約9000万部" },
+        { display: "キン肉マン シリーズ", accept: ["キン肉マン", "きんにくまん"], hint: "11位", sales: "約8500万部" },
+        { display: "HUNTER×HUNTER", accept: ["HUNTER×HUNTER", "ハンターハンター", "はんたーはんたー"], hint: "12位", sales: "約8400万部" },
+        { display: "ハイキュー!!", accept: ["ハイキュー!!", "ハイキュー", "はいきゅー"], hint: "13位", sales: "約7500万部" },
+        { display: "るろうに剣心", accept: ["るろうに剣心", "るろ剣", "るろうにけんしん", "るろうにけんしんめいじけんかくろまんたん"], hint: "14位", sales: "約7000万部" },
+        { display: "テニスの王子様 シリーズ", accept: ["テニスの王子様", "テニプリ", "てにすのおうじさま"], hint: "15位", sales: "約6000万部" },
+        { display: "北斗の拳", accept: ["北斗の拳", "ほくとのけん"], hint: "15位", sales: "約6000万部" },
+        { display: "ろくでなしBLUES", accept: ["ろくでなしBLUES", "ろくでなしブルース", "ろくでなしぶるーす"], hint: "15位", sales: "約6000万部" },
+        { display: "僕のヒーローアカデミア", accept: ["僕のヒーローアカデミア", "ヒロアカ", "ぼくのひーろーあかでみあ"], hint: "15位", sales: "約6000万部" },
+        { display: "銀魂", accept: ["銀魂", "ぎんたま"], hint: "19位", sales: "約5800万部" },
+        { display: "幽☆遊☆白書", accept: ["幽☆遊☆白書", "幽遊白書", "ゆうゆうはくしょ"], hint: "20位", sales: "約5000万部" },
+        { display: "CITY HUNTER", accept: ["CITY HUNTER", "シティーハンター", "してぃーはんたー"], hint: "20位", sales: "約5000万部" },
+        { display: "DRAGON QUEST -ダイの大冒険-", accept: ["ダイの大冒険", "だいのだいぼうけん", "どらごんくえすとだいのだいぼうけん"], hint: "20位", sales: "約5000万部" },
+        { display: "遊☆戯☆王", accept: ["遊☆戯☆王", "遊戯王", "ゆうぎおう"], hint: "23位", sales: "約4230万部" },
+        { display: "シャーマンキング シリーズ", accept: ["シャーマンキング", "しゃーまんきんぐ"], hint: "24位", sales: "約3800万部" },
+        { display: "聖闘士星矢", accept: ["聖闘士星矢", "せいんとせいや"], hint: "25位", sales: "約3500万部" },
+        { display: "銀牙 -流れ星 銀- シリーズ", accept: ["銀牙", "ぎんが", "ぎんがながれぼしぎん"], hint: "25位", sales: "約3500万部" },
+        { display: "チェンソーマン", accept: ["チェンソーマン", "ちぇんそーまん"], hint: "27位", sales: "約3400万部" },
+        { display: "家庭教師ヒットマンREBORN!", accept: ["リボーン", "りぼーん", "かてきょーひっとまんりぼーん"], hint: "28位", sales: "約3100万部" },
+        { display: "黒子のバスケ", accept: ["黒子のバスケ", "くろこのばすけ"], hint: "28位", sales: "約3100万部" },
+        { display: "地獄先生ぬ～べ～ シリーズ", accept: ["ぬーべー", "じごくせんせいぬーべー"], hint: "28位", sales: "約3100万部" },
+        { display: "Dr.スランプ", accept: ["Dr.スランプ", "ドクタースランプ", "どくたーすらんぷ"], hint: "31位", sales: "約3000万部" },
+        { display: "DEATH NOTE", accept: ["DEATH NOTE", "デスノート", "ですのーと"], hint: "31位", sales: "約3000万部" },
+        { display: "コブラ", accept: ["コブラ", "こぶら"], hint: "31位", sales: "約3000万部" },
+        { display: "BASTARD!! ー暗黒の破壊神ー", accept: ["BASTARD!!", "バスタード", "ばすたーど"], hint: "31位", sales: "約3000万部" },
+        { display: "トリコ", accept: ["トリコ", "とりこ"], hint: "31位", sales: "約3000万部" },
+        { display: "魁!!男塾", accept: ["魁!!男塾", "男塾", "さきがけおとこじゅく"], hint: "36位", sales: "約2700万部" },
+        { display: "暗殺教室", accept: ["暗殺教室", "あんさつきょうしつ"], hint: "37位", sales: "約2700万部" },
+        { display: "D.Gray-man", accept: ["D.Gray-man", "ディーグレイマン", "でぃーぐれいまん"], hint: "38位", sales: "約2700万部" },
+        { display: "アイシールド21", accept: ["アイシールド21", "あいしーるど21", "あいしーるどにじゅういち"], hint: "39位", sales: "約2600万部" },
+        { display: "ヒカルの碁", accept: ["ヒカルの碁", "ひかるのご"], hint: "40位", sales: "約2500万部" },
+        { display: "封神演義", accept: ["封神演義", "ほうしんえんぎ"], hint: "41位", sales: "約2200万部" },
+        { display: "ROOKIES", accept: ["ROOKIES", "ルーキーズ", "るーきーず"], hint: "42位", sales: "約2100万部" },
+        { display: "きまぐれオレンジロード", accept: ["きまぐれオレンジロード", "きまぐれおれんじろーど"], hint: "43位", sales: "約2000万部" },
+        { display: "キャッツ♡アイ", accept: ["キャッツアイ", "きゃっつあい"], hint: "43位", sales: "約2000万部" },
+        { display: "食戟のソーマ", accept: ["食戟のソーマ", "しょくげきのそーま"], hint: "43位", sales: "約2000万部" },
+        { display: "花の慶次 -雲のかなたに-", accept: ["花の慶次", "はなのけいじ", "はなのけいじくものかなたに"], hint: "43位", sales: "約2000万部" },
+        { display: "Dr.STONE", accept: ["Dr.STONE", "ドクターストーン", "どくたーすとーん"], hint: "47位", sales: "約1900万部" },
+        { display: "約束のネバーランド", accept: ["約束のネバーランド", "やくそくのねばーらんど"], hint: "48位", sales: "約1811.7万部" },
+        { display: "サーキットの狼", accept: ["サーキットの狼", "さーきっとのおおかみ"], hint: "49位", sales: "約1800万部" },
+        { display: "ホイッスル!", accept: ["ホイッスル", "ほいっする"], hint: "50位", sales: "約1700万部" },
+        { display: "ToLOVEる -とらぶる- シリーズ", accept: ["ToLOVEる", "とらぶる"], hint: "51位", sales: "約1600万部" },
+        { display: "トイレット博士", accept: ["トイレット博士", "といれっとはかせ"], hint: "52位", sales: "約1500万部" },
+        { display: "バクマン。", accept: ["バクマン", "ばくまん"], hint: "52位", sales: "約1500万部" },
+        { display: "ワールドトリガー", accept: ["ワールドトリガー", "わーるどとりがー"], hint: "52位", sales: "約1500万部" },
+        { display: "電影少女", accept: ["電影少女", "ビデオガール", "びでおがーる"], hint: "55位", sales: "約1400万部" },
+        { display: "SKET DANCE", accept: ["SKET DANCE", "スケットダンス", "すけっとだんす"], hint: "55位", sales: "約1400万部" },
+        { display: "プレイボール", accept: ["プレイボール", "ぷれいぼーる"], hint: "57位", sales: "約1320万部" },
+        { display: "ぬらりひょんの孫", accept: ["ぬらりひょんの孫", "ぬらりひょんのまご"], hint: "58位", sales: "約1300万部" },
+        { display: "まじかる☆タルるートくん", accept: ["たるるーと", "まじかるたるるーと", "まじかるたるるーとくん"], hint: "59位", sales: "約1260万部" },
+        { display: "BLACK CAT", accept: ["BLACK CAT", "ブラックキャット", "ぶらっくきゃっと"], hint: "60位", sales: "約1200万部" },
+        { display: "ニセコイ", accept: ["ニセコイ", "にせこい"], hint: "60位", sales: "約1200万部" },
+        { display: "ブラッククローバー", accept: ["ブラッククローバー", "ぶらっくくろーばー"], hint: "60位", sales: "約1200万部" },
+        { display: "ハイスクール奇面組", accept: ["奇面組", "きめんぐみ", "はいすくーるきめんぐみ"], hint: "63位", sales: "約1000万部" },
+        { display: "はだしのゲン", accept: ["はだしのゲン", "はだしのげん"], hint: "63位", sales: "約1000万部" },
+        { display: "I’s＜アイズ＞", accept: ["I's", "アイズ", "あいず"], hint: "63位", sales: "約1000万部" },
+        { display: "BORUTO-ボルト- シリーズ", accept: ["BORUTO", "ボルト", "ぼると"], hint: "63位", sales: "約1000万部" },
+        { display: "アオのハコ", accept: ["アオのハコ", "あおのはこ"], hint: "67位", sales: "約960万部" },
+        { display: "みどりのマキバオー", accept: ["マキバオー", "まきばおー", "みどりのまきばおー"], hint: "68位", sales: "約900万部" },
+        { display: "NINKU -忍空- シリーズ", accept: ["忍空", "にんくう"], hint: "68位", sales: "約900万部" },
+        { display: "ピューと吹く!ジャガー", accept: ["ジャガーさん", "ぴゅーとふくじゃがー"], hint: "70位", sales: "約850万部" },
+        { display: "いちご100%", accept: ["いちご100%", "いちごひゃくぱーせんと"], hint: "71位", sales: "約800万部" },
+        { display: "ブラックエンジェルズ", accept: ["ブラックエンジェルズ", "ぶらっくえんじぇるず"], hint: "71位", sales: "約800万部" },
+        { display: "世紀末リーダー伝たけし！", accept: ["たけし", "せいきまつりーだーでんたけし"], hint: "71位", sales: "約800万部" },
+        { display: "斉木楠雄のΨ難", accept: ["斉木楠雄", "さいきくすおのさいなん"], hint: "71位", sales: "約800万部" },
+        { display: "SAKAMOTO DAYS", accept: ["サカモトデイズ", "さかもとでいず"], hint: "71位", sales: "約800万部" },
+        { display: "新・ジャングルの王者ターちゃん", accept: ["たーちゃん", "じゃんぐるのおうじゃたーちゃん", "しんじゃんぐるのおうじゃたーちゃん"], hint: "76位", sales: "約700万部" },
+        { display: "セクシーコマンドー外伝 すごいよ!!マサルさん", accept: ["せくしーこまんどーがいでんすごいよまさるさん", "すごいよまさるさん", "まさるさん"], hint: "76位", sales: "約700万部" },
+        { display: "ボボボーボ・ボーボボ", accept: ["ボーボボ", "ぼぼぼーぼぼーぼぼ"], hint: "76位", sales: "約700万部" },
+        { display: "めだかボックス", accept: ["めだかぼっくす"], hint: "79位", sales: "約650万部" },
+        { display: "マッシュル -MASHLE-", accept: ["マッシュル", "まっしゅる"], hint: "80位", sales: "約600万部" },
+        { display: "シェイプアップ乱", accept: ["シェイプアップ乱", "しぇいぷあっぷらん"], hint: "81位", sales: "約550万部" },
+        { display: "ドーベルマン刑事", accept: ["ドーベルマン刑事", "どーべるまんでか"], hint: "83位", sales: "約500万部" },
+        { display: "逃げ上手の若君", accept: ["逃げ若", "にげわか", "にげじょうずのわかぎみ"], hint: "83位", sales: "約500万部" },
+        { display: "魔人探偵脳喰ネウロ", accept: ["魔人探偵脳喰ネウロ", "ねうろ", "まじんたんていのうがみねうろ"], hint: "84位", sales: "約487万部" },
+        { display: "ライジングインパクト", accept: ["ライジングインパクト", "らいじんぐいんぱくと"], hint: "85位", sales: "約480万部" },
+        { display: "ぼくたちは勉強ができない", accept: ["ぼく勉", "ぼくたちはべんきょうができない"], hint: "86位", sales: "約470万部" },
+        { display: "風魔の小次郎", accept: ["風魔の小次郎", "ふうまのこじろう"], hint: "87位", sales: "約458万部" },
+        { display: "ウィッチウォッチ", accept: ["ウィッチウォッチ", "うぃっちうぉっち"], hint: "88位", sales: "約400万部" },
+        { display: "BOY", accept: ["BOY", "ボーイ", "ぼーい"], hint: "89位", sales: "約410万部" },
+        { display: "珍遊記 -太郎とゆかいな仲間たち-", accept: ["珍遊記", "ちんゆうき", "ちんゆうきたろうとゆかいななかまたち"], hint: "90位", sales: "約約400万部" },
+        { display: "ムヒョとロージーの魔法律探偵事務所 シリーズ", accept: ["ムヒョロジ", "むひょろじ", "むひょとろーじー", "むひょとろーじーのまほうりつたんていじむしょ"], hint: "90位", sales: "約400万部" },
+        { display: "ストップ!! ひばりくん!", accept: ["ひばりくん", "すとっぷひばりくん"], hint: "90位", sales: "約400万部" },
+        { display: "ゆらぎ荘の幽奈さん", accept: ["ゆらぎそう", "ゆらぎそうのゆうなさん"], hint: "93位", sales: "約360万部" },
+        { display: "夜桜さんちの大作戦", accept: ["よざくらさん", "よざくらさんちのだいさくせん"], hint: "93位", sales: "約360万部" },
+        { display: "とっても！ラッキーマン", accept: ["らっきーまん", "とってもらっきーまん"], hint: "95位", sales: "約300万部" },
+        { display: "武装錬金", accept: ["武装錬金", "ぶそうれんきん"], hint: "95位", sales: "約300万部" },
+        { display: "ど根性ガエル", accept: ["ど根性ガエル", "どこんじょうがえる"], hint: "95位", sales: "約300万部" },
+        { display: "アクタージュ act-age-", accept: ["アクタージュ", "あくたーじゅ"], hint: "95位", sales: "約300万部" },
+        { display: "カグラバチ", accept: ["カグラバチ", "かぐらばち"], hint: "95位", sales: "約300万部" },
+        { display: "あかね噺", accept: ["あかね噺", "あかねばなし"], hint: "95位", sales: "約300万部" },
+    ];
+
+    let foundCount = 0;
+    let isGameOver = false;
+    let answeredIndices = new Set();
+
+    const input = document.getElementById('answerInput');
+    const remainingText = document.getElementById('remaining');
+    const totalText = document.getElementById('total');
+    const listContainer = document.getElementById('answerList');
+    const messageEl = document.getElementById('message');
+    const giveupBtn = document.getElementById('giveupBtn');
+    const retryBtn = document.getElementById('retryBtn');
+    const limitFill = document.getElementById('limitFill');
+    const progressPercentText = document.getElementById('progressPercent');
+
+    function updateLimitGauge() {
+        const percent = Math.floor((foundCount / quizData.length) * 100);
+        if(limitFill) limitFill.style.width = percent + "%";
+        if(progressPercentText) {
+            progressPercentText.textContent = (foundCount === quizData.length) ? "COMPLETE!" : percent + "%";
+        }
+    }
+
+    function init() {
+        foundCount = 0;
+        isGameOver = false;
+        answeredIndices.clear();
+        listContainer.innerHTML = '';
+        input.disabled = false;
+        input.value = '';
+        input.placeholder = config.placeholderNormal;
+        giveupBtn.style.display = 'inline-block';
+        retryBtn.style.display = 'none';
+        remainingText.textContent = quizData.length;
+        totalText.textContent = quizData.length;
+        messageEl.textContent = 'READY...';
+
+        quizData.forEach((item, index) => {
+            const div = document.createElement('div');
+            div.className = 'item';
+            div.id = 'target-' + index;
+            // 内部構造を「ヒント+発行部数」と「タイトル」に分ける
+            div.innerHTML = `
+                <div class="info-row">
+                    <span class="hint-text">${item.hint}</span>
+                    <span class="sales-text">${item.sales}</span>
+                </div>
+                <div class="answer-text">${item.display}</div>
+            `;
+            listContainer.appendChild(div);
+        });
+
+        loadProgress();
+        updateLimitGauge();
+    }
+
+    function loadProgress() {
+        const savedData = localStorage.getItem(config.storageKey);
+        if (savedData) {
+            const savedIndices = JSON.parse(savedData);
+            savedIndices.forEach(index => {
+                if (index < quizData.length) {
+                    answeredIndices.add(index);
+                    updateItemDisplay(index, true, false);
+                    foundCount++;
+                }
+            });
+            remainingText.textContent = quizData.length - foundCount;
+            if (foundCount > 0) showMessage("DATA LOADED.", "#000");
+        }
+    }
+
+    function saveProgress() {
+        localStorage.setItem(config.storageKey, JSON.stringify(Array.from(answeredIndices)));
+    }
+
+    input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !isGameOver) {
+            const val = input.value.trim().toLowerCase();
+            if (val === "") return;
+            
+            let targetIndex = quizData.findIndex(item => 
+                item.accept.some(a => a.toLowerCase() === val)
+            );
+
+            if (targetIndex !== -1) {
+                if (answeredIndices.has(targetIndex)) {
+                    showMessage("ALREADY FOUND.", "#000");
+                    scrollToItem(targetIndex);
+                } else {
+                    answeredIndices.add(targetIndex);
+                    updateItemDisplay(targetIndex, true, true);
+                    foundCount++;
+                    remainingText.textContent = quizData.length - foundCount;
+                    showMessage("HIT!!", "#000");
+                    saveProgress();
+                    updateLimitGauge();
+                    if (foundCount === quizData.length) finishGame("MASTERPIECE!!", "#000");
+                }
+            } else {
+                showMessage("MISS...", "#777");
+            }
+            input.value = '';
+        }
+    });
+
+    function updateItemDisplay(index, isCorrect, shouldScroll) {
+        const targetEl = document.getElementById('target-' + index);
+        if (isCorrect) {
+            targetEl.classList.add('found');
+            if (shouldScroll) scrollToItem(index);
+        } else {
+            targetEl.classList.add('missed');
+        }
+    }
+
+    function scrollToItem(index) {
+        document.getElementById('target-' + index).scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+        });
+    }
+
+    giveupBtn.addEventListener('click', () => {
+        quizData.forEach((item, index) => {
+            if (!answeredIndices.has(index)) updateItemDisplay(index, false, false);
+        });
+        finishGame("FINISHED.", "#000");
+    });
+
+    retryBtn.addEventListener('click', () => {
+        if(confirm("データを削除して最初からプレイしますか？")) {
+            localStorage.removeItem(config.storageKey);
+            init();
+        }
+    });
+
+    function finishGame(msg, color) {
+        isGameOver = true;
+        input.disabled = true;
+        input.placeholder = config.placeholderGameOver;
+        giveupBtn.style.display = 'none';
+        retryBtn.style.display = 'inline-block';
+        showMessage(msg, color);
+    }
+
+    function showMessage(text, color) {
+        messageEl.textContent = text;
+    }
+
+    init();
+</script>
+
+</body>
+</html>
