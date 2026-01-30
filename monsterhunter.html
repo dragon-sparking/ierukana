@@ -63,44 +63,56 @@
             padding-bottom: 5px;
         }
 
-        /* 斬れ味ゲージ風・進行状況バー */
-        .limit-gauge-outer {
-            max-width: 600px;
-            margin: 20px auto;
-            padding: 5px;
-            background: #2a221f; /* 金属の枠 */
-            border: 3px solid #8d6e63;
-            border-radius: 2px;
-            box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
-        }
+/* 1. ゲージとラベルを横並びにするためのコンテナ設定 */
+.limit-gauge-outer {
+    max-width: 650px; /* パーセント表示分、少し幅を広げると余裕が出ます */
+    margin: 20px auto;
+    padding: 5px;
+    background: #2a221f; 
+    border: 3px solid #8d6e63;
+    border-radius: 2px;
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
+    
+    /* 追加: Flexboxで横並びにする */
+    display: flex;
+    align-items: center;
+    gap: 10px; /* ゲージと文字の間隔 */
+}
 
-        .limit-gauge-bg {
-            height: 20px;
-            background: #424242;
-            overflow: hidden;
-            position: relative;
-            clip-path: polygon(0% 0%, 98% 0%, 100% 50%, 98% 100%, 0% 100%);
-        }
+/* 2. ゲージ本体の設定 */
+.limit-gauge-bg {
+    flex-grow: 1;
+    height: 20px;
+    background: #424242;
+    position: relative; /* これが必須 */
+    overflow: hidden;
+    clip-path: polygon(0% 0%, 98% 0%, 100% 50%, 98% 100%, 0% 100%);
+}
 
-        #limitFill {
-            height: 100%;
-            width: 0%;
-            /* 斬れ味ゲージ風グラデーション（赤〜黄〜緑〜青〜白） */
-            background: linear-gradient(to right, #d32f2f, #fbc02d, #4caf50, #0288d1, #ffffff);
-            transition: width 0.4s ease-out;
-        }
+/* 追加: 中のバー自体のスタイルを確定させる */
+#limitFill {
+    height: 100%;
+    width: 0%; /* 初期値 */
+    background: linear-gradient(to right, #d32f2f, #fbc02d, #4caf50, #0288d1, #ffffff);
+    transition: width 0.4s ease-out;
+    position: absolute; /* 親の中で自由に動けるようにする */
+    left: 0;
+    top: 0;
+}
 
-        .limit-label {
-            position: absolute;
-            left: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 14px;
-            font-weight: bold;
-            color: #fff;
-            text-shadow: 1px 1px 2px #000;
-            z-index: 2;
-        }
+/* 3. ラベル（%）の配置を調整 */
+.limit-label {
+    /* position: absolute; を削除、または以下のようにリセット */
+    position: static; 
+    transform: none;
+    
+    font-size: 16px; /* 少し大きくすると見やすくなります */
+    font-weight: bold;
+    color: #fdf5e6; /* 背景の羊皮紙に近い色、または白 */
+    text-shadow: 1px 1px 2px #000;
+    white-space: nowrap; /* 改行防止 */
+    order: 2; /* ゲージの右側に配置 */
+}
 
         .status { margin: 15px 0; font-size: 1.3em; font-weight: bold; color: #5d4037; }
         #message { height: 30px; font-weight: bold; margin-bottom: 10px; color: #bf360c; font-size: 1.2em; }
@@ -185,12 +197,12 @@
 <div class="container">
     <div class="sticky-header">
         <h2>モンスターハンター 別名からモンスターいえるかな</h2>
-        <div class="limit-gauge-outer" id="gaugeWrapper">
-            <div class="limit-label" id="progressPercent">0%</div> 
-            <div class="limit-gauge-bg">
-                <div id="limitFill"></div>
-            </div>
-        </div>
+<div class="limit-gauge-outer" id="gaugeWrapper">
+    <div class="limit-gauge-bg">
+        <div id="limitFill"></div>
+    </div>
+    <div class="limit-label" id="progressPercent">0%</div> 
+</div>
         <div class="status">未討伐: <span id="remaining">--</span> / <span id="total">--</span></div>
         <div id="message"></div>
         <input type="text" id="answerInput" placeholder="名称を入力..." autofocus autocomplete="off">
@@ -424,12 +436,21 @@
     const limitFill = document.getElementById('limitFill');
     const percentDisplay = document.getElementById('progressPercent');
 
-    function updateLimitGauge() {
-        const percent = Math.floor((foundCount / quizData.length) * 100);
-        if(limitFill) limitFill.style.width = percent + "%";
-        if(percentDisplay) percentDisplay.textContent = percent + "%";
+function updateLimitGauge() {
+    // 全体数に対する正解数の割合を計算
+    const percent = Math.floor((foundCount / quizData.length) * 100);
+    
+    // 要素が存在するか確認してから更新
+    const fill = document.getElementById('limitFill');
+    const label = document.getElementById('progressPercent');
+    
+    if (fill) {
+        fill.style.width = percent + "%";
     }
-
+    if (label) {
+        label.textContent = percent + "%";
+    }
+}
     function init() {
         foundCount = 0;
         isGameOver = false;
