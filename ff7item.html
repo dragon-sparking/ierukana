@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>FF7 アイテムの名前いえるかな</title>
+    <style>
+/* リミットゲージ全体のコンテナ */
+.limit-gauge-outer {
+    max-width: 600px;
+    margin: 15px auto;
+    padding: 3px;
+    background: #444; /* 枠線 */
+    border: 1px solid #888;
+    border-radius: 4px;
+    position: relative;
+}
+
+/* ゲージの背景（黒い部分） */
+.limit-gauge-bg {
+    height: 20px;
+    background: #000;
+    border-radius: 2px;
+    overflow: hidden;
+    position: relative;
+}
+
+/* 実際のゲージ本体 */
+#limitFill {
+    height: 100%;
+    width: 0%; /* JSで変動 */
+    background: linear-gradient(to right, #222, #0055aa 30%, #00aaff 60%, #ffffff 100%);
+    box-shadow: 0 0 10px #00aaff;
+    transition: width 0.4s ease-out;
+}
+
+/* ゲージ内のテキスト */
+.limit-label {
+    position: absolute;
+    right: 10px; /* 左(left)から右(right)に変更するとゲージの伸びを邪魔しません */
+    top: 50%;
+    transform: translateY(-50%);
+    font-style: italic;
+    font-size: 12px;
+    font-weight: 900; /* より太く */
+    color: #fff;
+    text-shadow: 1px 1px 2px #000;
+    z-index: 2;
+    pointer-events: none;
+    letter-spacing: 1px;
+}
+
+/* 全問正解（MAX）時の虹色アニメーション */
+@keyframes limit-flash {
+    0% { filter: brightness(1); }
+    50% { filter: brightness(1.8); box-shadow: 0 0 20px #fff; }
+    100% { filter: brightness(1); }
+}
+
+.limit-max #limitFill {
+    background: linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff);
+    animation: limit-flash 0.2s infinite;
+}
+        /* スタイル部分は変更なしのため維持 */
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; text-align: center; padding: 20px; background: linear-gradient(135deg, #000080 0%, #000040 50%, #000000 100%); background-attachment: fixed; color: white; margin: 0; }
+        .container { max-width: 1500px; margin: 20px auto; background: rgba(0, 0, 128, 0.7); padding: 20px; border-radius: 10px; border: 3px double #ffffff; box-shadow: 0 0 15px rgba(0,0,0,0.5); }
+        .sticky-header { position: sticky; top: 0; background: rgba(0, 0, 80, 0.95); padding: 20px 0; z-index: 100; border-bottom: 2px solid rgba(255,255,255,0.3); margin-bottom: 20px; }
+        h2 { margin: 0; color: #ffffff; text-shadow: 2px 2px 4px #000; }
+        .status { margin: 10px 0; font-weight: bold; font-size: 1.2em; color: #fff; }
+        #message { height: 24px; font-weight: bold; margin-bottom: 10px; }
+        input { font-size: 18px; padding: 10px; width: 40%; border: 2px solid #fff; border-radius: 5px; outline: none; background: #000; color: #fff; }
+        .btn { padding: 10px 20px; font-size: 16px; cursor: pointer; border-radius: 5px; border: 1px solid #fff; background: #000080; color: white; transition: 0.3s; vertical-align: middle; }
+        .btn:hover { background: #0000ff; }
+        .list { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-top: 20px; }
+        .item { padding: 10px 5px; background: rgba(255, 255, 255, 0.1); border-radius: 5px; color: #aaa; border: 1px solid rgba(255, 255, 255, 0.3); font-size: 14px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 50px; word-break: break-all; font-weight: bold; }
+        .hint-text { font-size: 0.85em; margin-bottom: 4px; color: #ccc; }
+        .answer-text { font-size: 1.05em; }
+        .item.found { background: #0078d7; color: white; border-color: #fff; box-shadow: 0 0 10px #0078d7; }
+        .item.found .hint-text { color: #e0e0e0; }
+        .item.missed { background: #000030; border-color: #fff; }
+        .item.missed .answer-text { color: #ff4444; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+<div class="sticky-header">
+    <h2>FF7 アイテムの名前いえるかな</h2>
+<div class="limit-gauge-outer" id="gaugeWrapper">
+    <div class="limit-label" id="progressPercent">0%</div> 
+    <div class="limit-gauge-bg">
+        <div id="limitFill"></div>
+    </div>
+</div>
+    <div class="status">あと <span id="remaining">--</span> / <span id="total">--</span></div>
+        <div id="message"></div>
+        <input type="text" id="answerInput" placeholder="" autofocus autocomplete="off">
+        <button class="btn giveup-btn" id="giveupBtn">ギブアップ</button>
+        <button class="btn retry-btn" id="retryBtn" style="display:none;">もう一度遊ぶ</button>
+    </div>
+    <div class="list" id="answerList"></div>
+</div>
+
+<script>
+    const config = {
+        placeholderNormal: "名前を入力してEnter",
+        placeholderGameOver: "GAME OVER",
+        storageKey: "quiz_save_" + document.title
+    };
+
+const quizData = [
+    // クラウド（剣）
+    { display: "バスターソード", accept: ["バスターソード", "ばすたーそーど"], hint: "クラウド（剣）" },
+    { display: "ミスリルセイバー", accept: ["ミスリルセイバー", "みすりるせいばー"], hint: "クラウド（剣）" },
+    { display: "ハードブレイカー", accept: ["ハードブレイカー", "はーどぶれいかー"], hint: "クラウド（剣）" },
+    { display: "フォースイーター", accept: ["フォースイーター", "ふぉーすいーたー"], hint: "クラウド（剣）" },
+    { display: "バタフライエッジ", accept: ["バタフライエッジ", "ばたふらいえっじ"], hint: "クラウド（剣）" },
+    { display: "ルーンブレイド", accept: ["ルーンブレイド", "るーんぶれいど"], hint: "クラウド（剣）" },
+    { display: "エンハンスソード", accept: ["エンハンスソード", "えんはんすそーど"], hint: "クラウド（剣）" },
+    { display: "村雨", accept: ["村雨", "むらさめ"], hint: "クラウド（剣）" },
+    { display: "陸奥守吉行", accept: ["陸奥守吉行", "むつのかみよしゆき"], hint: "クラウド（剣）" },
+    { display: "オーガニクス", accept: ["オーガニクス", "おーがにくす"], hint: "クラウド（剣）" },
+    { display: "釘バット", accept: ["釘バット", "くぎばっと"], hint: "クラウド（剣）" },
+    { display: "クリスタルソード", accept: ["クリスタルソード", "くりすたるそーど"], hint: "クラウド（剣）" },
+    { display: "アポカリプス", accept: ["アポカリプス", "あぽかりぷす"], hint: "クラウド（剣）" },
+    { display: "天の叢雲", accept: ["天の叢雲", "あめのむらくも"], hint: "クラウド（剣）" },
+    { display: "ラグナロク", accept: ["ラグナロク", "らぐなろく"], hint: "クラウド（剣）" },
+    { display: "アルテマウェポン", accept: ["アルテマウェポン", "あるてまうぇぽん"], hint: "クラウド（剣）" },
+
+    // ティファ（ナックル）
+    { display: "レザーグローブ", accept: ["レザーグローブ", "れざーぐろーぶ"], hint: "ティファ（拳）" },
+    { display: "メタルナックル", accept: ["メタルナックル", "めたるなっくる"], hint: "ティファ（拳）" },
+    { display: "ミスリルクロー", accept: ["ミスリルクロー", "みすりるくろー"], hint: "ティファ（拳）" },
+    { display: "モータードライブ", accept: ["モータードライブ", "もーたーどらいぶ"], hint: "ティファ（拳）" },
+    { display: "オーバーソウル", accept: ["オーバーソウル", "おーばーそうる"], hint: "ティファ（拳）" },
+    { display: "プラチナフィスト", accept: ["プラチナフィスト", "ぷらちなふぃすと"], hint: "ティファ（拳）" },
+    { display: "グランドグラブ", accept: ["グランドグラブ", "ぐらんどぐらぶ"], hint: "ティファ（拳）" },
+    { display: "タイガーファング", accept: ["タイガーファング", "たいがーふぁんぐ"], hint: "ティファ（拳）" },
+    { display: "マスターフィスト", accept: ["マスターフィスト", "ますたーふぃすと"], hint: "ティファ（拳）" },
+    { display: "カイザーナックル", accept: ["カイザーナックル", "かいざーなっくる"], hint: "ティファ（拳）" },
+    { display: "ダイアナックル", accept: ["ダイアナックル", "だいあなっくる"], hint: "ティファ（拳）" },
+    { display: "ドラゴンクロー", accept: ["ドラゴンクロー", "どらごんくろー"], hint: "ティファ（拳）" },
+    { display: "軍手", accept: ["軍手", "ぐんて"], hint: "ティファ（拳）" },
+    { display: "クリスタルグラブ", accept: ["クリスタルグラブ", "くりすたるぐらぶ"], hint: "ティファ（拳）" },
+    { display: "ゴッドハンド", accept: ["ゴッドハンド", "ごっどはんど"], hint: "ティファ（拳）" },
+    { display: "プレミアムハート", accept: ["プレミアムハート", "ぷれみあむはーと"], hint: "ティファ（拳）" },
+
+    // バレット（ギミックアーム）
+    { display: "ガトリングガン", accept: ["ガトリングガン", "がとりんぐがん"], hint: "バレット（腕）" },
+    { display: "アサルトガン", accept: ["アサルトガン", "あさるとがん"], hint: "バレット（腕）" },
+    { display: "キャノンボール", accept: ["キャノンボール", "きゃのんぼーる"], hint: "バレット（腕）" },
+    { display: "Wマシンガン", accept: ["Wマシンガン", "だぶるましんがん", "wましんがん"], hint: "バレット（腕）" },
+    { display: "アトミックシザー", accept: ["アトミックシザー", "あとみっくしざー"], hint: "バレット（腕）" },
+    { display: "エネミーランチャ", accept: ["エネミーランチャ", "えねみーらんちゃ"], hint: "バレット（腕）" },
+    { display: "ドリルアーム", accept: ["ドリルアーム", "どりるあーむ"], hint: "バレット（腕）" },
+    { display: "ハードバルカン", accept: ["ハードバルカン", "はーどばるかん"], hint: "バレット（腕）" },
+    { display: "チェーンソー", accept: ["チェーンソー", "ちぇーんそー"], hint: "バレット（腕）" },
+    { display: "ソリッドバズーカ", accept: ["ソリッドバズーカ", "そりっどばずーか"], hint: "バレット（腕）" },
+    { display: "ロケットパンチ", accept: ["ロケットパンチ", "ろけっとぱんち"], hint: "バレット（腕）" },
+    { display: "マイクロレーザー", accept: ["マイクロレーザー", "まいくろれーざー"], hint: "バレット（腕）" },
+    { display: "A・Mキャノン", accept: ["A・Mキャノン", "えーえむきゃのん"], hint: "バレット（腕）" },
+    { display: "パイルバンカー", accept: ["パイルバンカー", "ぱいるばんかー"], hint: "バレット（腕）" },
+    { display: "マキシマムレイ", accept: ["マキシマムレイ", "まきしまむれい"], hint: "バレット（腕）" },
+    { display: "ミッシングスコア", accept: ["ミッシングスコア", "みっしんぐすこあ"], hint: "バレット（腕）" },
+
+    // エアリス（ロッド）
+    { display: "ガードロッド", accept: ["ガードロッド", "がーどろっど"], hint: "エアリス（杖）" },
+    { display: "ミスリルロッド", accept: ["ミスリルロッド", "みすりるろっど"], hint: "エアリス（杖）" },
+    { display: "フルメタルロッド", accept: ["フルメタルロッド", "ふるめたるろっど"], hint: "エアリス（杖）" },
+    { display: "ウィザードロッド", accept: ["ウィザードロッド", "うぃざーどろっど"], hint: "エアリス（杖）" },
+    { display: "ストライクロッド", accept: ["ストライクロッド", "すとらいくろっど"], hint: "エアリス（杖）" },
+    { display: "ワイザーロッド", accept: ["ワイザーロッド", "わいざーろっど"], hint: "エアリス（杖）" },
+    { display: "フェアリーテイル", accept: ["フェアリーテイル", "ふぇありーている"], hint: "エアリス（杖）" },
+    { display: "プリズムロッド", accept: ["プリズムロッド", "ぷりずむろっど"], hint: "エアリス（杖）" },
+    { display: "オーロラロッド", accept: ["オーロラロッド", "おーろらろっど"], hint: "エアリス（杖）" },
+    { display: "プリンセスガード", accept: ["プリンセスガード", "ぷりんせすがーど"], hint: "エアリス（杖）" },
+    { display: "アンブレラ", accept: ["アンブレラ", "あんぶれら"], hint: "エアリス（杖）" },
+
+    // レッドXIII（髪飾り）
+    { display: "ミスリルクリップ", accept: ["ミスリルクリップ", "みすりるくりっぷ"], hint: "レッドXIII" },
+    { display: "ギヤマンヘアピン", accept: ["ギヤマンヘアピン", "ぎやまんへあぴん"], hint: "レッドXIII" },
+    { display: "マジックコーム", accept: ["マジックコーム", "まじっくこーむ"], hint: "レッドXIII" },
+    { display: "プラチナバレッタ", accept: ["プラチナバレッタ", "ぷらちなばれった"], hint: "レッドXIII" },
+    { display: "シルバーバレッタ", accept: ["シルバーバレッタ", "しるばーばれった"], hint: "レッドXIII" },
+    { display: "ゴールドバレッタ", accept: ["ゴールドバレッタ", "ごーるどばれった"], hint: "レッドXIII" },
+    { display: "かんざし", accept: ["かんざし"], hint: "レッドXIII" },
+    { display: "セントクリップ", accept: ["セントクリップ", "せんとくりっぷ"], hint: "レッドXIII" },
+    { display: "アダマンクリップ", accept: ["アダマンクリップ", "あだまんくりっぷ"], hint: "レッドXIII" },
+    { display: "セラフコーム", accept: ["セラフコーム", "せらふこーむ"], hint: "レッドXIII" },
+    { display: "クリスタルコーム", accept: ["クリスタルコーム", "くりすたるこーむ"], hint: "レッドXIII" },
+    { display: "スプリガンクリップ", accept: ["スプリガンクリップ", "すぷりがんくりっぷ"], hint: "レッドXIII" },
+    { display: "ベヒーモスホーン", accept: ["ベヒーモスホーン", "べひーもすほーん"], hint: "レッドXIII" },
+    { display: "リミテッドムーン", accept: ["リミテッドムーン", "りみてっどむーん"], hint: "レッドXIII" },
+
+    // ケット・シー（メガホン）
+    { display: "シルバーメガホン", accept: ["シルバーメガホン", "しるばーめがほん"], hint: "ケット・シー" },
+    { display: "ブラックメガホン", accept: ["ブラックメガホン", "ぶらっくめがほん"], hint: "ケット・シー" },
+    { display: "ホワイトメガホン", accept: ["ホワイトメガホン", "ほわいとめがほん"], hint: "ケット・シー" },
+    { display: "イエローメガホン", accept: ["イエローメガホン", "いえろーめがほん"], hint: "ケット・シー" },
+    { display: "グリーンメガホン", accept: ["グリーンメガホン", "ぐりーんめがほん"], hint: "ケット・シー" },
+    { display: "ブルーメガホン", accept: ["ブルーメガホン", "ぶるーめがほん"], hint: "ケット・シー" },
+    { display: "ゴールドメガホン", accept: ["ゴールドメガホン", "ごーるどめがほん"], hint: "ケット・シー" },
+    { display: "レッドメガホン", accept: ["レッドメガホン", "れっどめがほん"], hint: "ケット・シー" },
+    { display: "法螺貝", accept: ["法螺貝", "ほらがい"], hint: "ケット・シー" },
+    { display: "クリスタルメガホン", accept: ["クリスタルメガホン", "くりすたるめがほん"], hint: "ケット・シー" },
+    { display: "スターライトホン", accept: ["スターライトホン", "すたーらいとほん"], hint: "ケット・シー" },
+    { display: "突撃ラッパ", accept: ["突撃ラッパ", "とつげきらっぱ"], hint: "ケット・シー" },
+    { display: "マーベラスチアー", accept: ["マーベラスチアー", "まーべらすちあー"], hint: "ケット・シー" },
+
+    // シド（槍）
+    { display: "スピア", accept: ["スピア", "すぴあ"], hint: "シド（槍）" },
+    { display: "スラッシュパイク", accept: ["スラッシュパイク", "すらっしゅぱいく"], hint: "シド（槍）" },
+    { display: "蛇矛", accept: ["蛇矛", "じゃぼう", "だぼう", "じゃほこ"], hint: "シド（槍）" },
+    { display: "トライデント", accept: ["トライデント", "とらいでんと"], hint: "シド（槍）" },
+    { display: "ジャベリン", accept: ["ジャベリン", "じゃべりん"], hint: "シド（槍）" },
+    { display: "ポールアックス", accept: ["ポールアックス", "ぽーるあっくす"], hint: "シド（槍）" },
+    { display: "ドラグーンランス", accept: ["ドラグーンランス", "どらぐーんらんす"], hint: "シド（槍）" },
+    { display: "モップ", accept: ["モップ", "もっぷ"], hint: "シド（槍）" },
+    { display: "パルチザン", accept: ["パルチザン", "ぱるちざん"], hint: "シド（槍）" },
+    { display: "グローランス", accept: ["グローランス", "ぐろーらんす"], hint: "シド（槍）" },
+    { display: "青龍偃月刀", accept: ["青龍偃月刀", "せいりゅうえんげつとう"], hint: "シド（槍）" },
+    { display: "ロンギヌス", accept: ["ロンギヌス", "ろんぎぬす"], hint: "シド（槍）" },
+    { display: "方天画戟", accept: ["方天画戟", "ほうてんがげき"], hint: "シド（槍）" },
+    { display: "ビーナスゴスペル", accept: ["ビーナスゴスペル", "びーなすごすぺる"], hint: "シド（槍）" },
+
+    // ユフィ（手裏剣）
+    { display: "十字手裏剣", accept: ["十字手裏剣", "じゅうじしゅりけん"], hint: "ユフィ（手裏剣）" },
+    { display: "ブーメラン", accept: ["ブーメラン", "ぶーめらん"], hint: "ユフィ（手裏剣）" },
+    { display: "風斬り", accept: ["風斬り", "かぜきり"], hint: "ユフィ（手裏剣）" },
+    { display: "ツインヴァイパー", accept: ["ツインヴァイパー", "ついんばいぱー"], hint: "ユフィ（手裏剣）" },
+    { display: "風車", accept: ["風車", "かざぐるま"], hint: "ユフィ（手裏剣）" },
+    { display: "円月輪", accept: ["円月輪", "えんげつりん"], hint: "ユフィ（手裏剣）" },
+    { display: "ホークアイ", accept: ["ホークアイ", "ほーくあい"], hint: "ユフィ（手裏剣）" },
+    { display: "風魔手裏剣", accept: ["風魔手裏剣", "ふうましゅりけん"], hint: "ユフィ（手裏剣）" },
+    { display: "卍手裏剣", accept: ["卍手裏剣", "まんじしゅりけん"], hint: "ユフィ（手裏剣）" },
+    { display: "ライジングサン", accept: ["ライジングサン", "らいじんぐさん"], hint: "ユフィ（手裏剣）" },
+    { display: "スーパーボール", accept: ["スーパーボール", "すーぱーぼーる"], hint: "ユフィ（手裏剣）" },
+    { display: "クリスタルクロス", accept: ["クリスタルクロス", "くりすたるくろす"], hint: "ユフィ（手裏剣）" },
+    { display: "折り鶴", accept: ["折り鶴", "おりづる"], hint: "ユフィ（手裏剣）" },
+    { display: "不倶戴天", accept: ["不倶戴天", "ふぐたいてん"], hint: "ユフィ（手裏剣）" },
+
+    // ヴィンセント（銃）
+    { display: "クイックシルバー", accept: ["クイックシルバー", "くいっくしるばー"], hint: "ヴィンセント（銃）" },
+    { display: "ピースメーカー", accept: ["ピースメーカー", "ぴーすめーかー"], hint: "ヴィンセント（銃）" },
+    { display: "スナイパーCR", accept: ["スナイパーCR", "すないぱーしーあーる"], hint: "ヴィンセント（銃）" },
+    { display: "スパス", accept: ["スパス", "すぱす"], hint: "ヴィンセント（銃）" },
+    { display: "バントライン", accept: ["バントライン", "ばんとらいん"], hint: "ヴィンセント（銃）" },
+    { display: "ランダル", accept: ["ランダル", "らんだる"], hint: "ヴィンセント（銃）" },
+    { display: "銀玉鉄砲", accept: ["銀玉鉄砲", "ぎんだまでっぽう"], hint: "ヴィンセント（銃）" },
+    { display: "ライアット", accept: ["ライアット", "らいあっと"], hint: "ヴィンセント（銃）" },
+    { display: "ロングバレルR", accept: ["ロングバレルR", "ろんぐばれるあーる"], hint: "ヴィンセント（銃）" },
+    { display: "ウィンチェスター", accept: ["ウィンチェスター", "うぃんちぇすたー"], hint: "ヴィンセント（銃）" },
+    { display: "アウトサイダー", accept: ["アウトサイダー", "あうとさいだー"], hint: "ヴィンセント（銃）" },
+    { display: "ハイブロウST", accept: ["ハイブロウST", "はいぶろうえすてぃー"], hint: "ヴィンセント（銃）" },
+    { display: "デスペナルティ", accept: ["デスペナルティ", "ですぺなるてぃ"], hint: "ヴィンセント（銃）" },
+
+    // セフィロス
+    { display: "正宗", accept: ["正宗", "まさむね"], hint: "セフィロス" },
+
+    // 防具
+    { display: "高級腕時計", accept: ["高級腕時計", "こうきゅううでどけい"], hint: "防具" },
+    { display: "ウィザードブレス", accept: ["ウィザードブレス", "うぃざーどぶれす"], hint: "防具" },
+    { display: "ブロンズバングル", accept: ["ブロンズバングル", "ぶろんずばんぐる"], hint: "防具" },
+    { display: "アイアンバングル", accept: ["アイアンバングル", "あいあんばんぐる"], hint: "防具" },
+    { display: "フォウスロット", accept: ["フォウスロット", "ふぉうすろっと"], hint: "防具" },
+    { display: "チタンバングル", accept: ["チタンバングル", "ちたんばんぐる"], hint: "防具" },
+    { display: "ミスリルの腕輪", accept: ["ミスリルの腕輪", "みすりるのうでわ"], hint: "防具" },
+    { display: "プラチナバングル", accept: ["プラチナバングル", "ぷらちなばんぐる"], hint: "防具" },
+    { display: "カーボンバングル", accept: ["カーボンバングル", "かーぼんばんぐる"], hint: "防具" },
+    { display: "神羅安式防具", accept: ["神羅安式防具", "しんらあんしきぼうぐ"], hint: "防具" },
+    { display: "銀の腕輪", accept: ["銀の腕輪", "ぎんのうでわ"], hint: "防具" },
+    { display: "チョコボの腕輪", accept: ["チョコボの腕輪", "ちょこぼのうでわ"], hint: "防具" },
+    { display: "ルーンの腕輪", accept: ["ルーンの腕輪", "るーんのうでわ"], hint: "防具" },
+    { display: "金の腕輪", accept: ["金の腕輪", "きんのうでわ"], hint: "防具" },
+    { display: "エジンコート", accept: ["エジンコート", "えじんこーと"], hint: "防具" },
+    { display: "エイジスの腕輪", accept: ["エイジスの腕輪", "えいじすのうでわ"], hint: "防具" },
+    { display: "ダイアバングル", accept: ["ダイアバングル", "だいあばんぐる"], hint: "防具" },
+    { display: "ドラゴンの腕輪", accept: ["ドラゴンの腕輪", "どらごんのうでわ"], hint: "防具" },
+    { display: "ギガースの腕輪", accept: ["ギガースの腕輪", "ぎがーすのうでわ"], hint: "防具" },
+    { display: "ミネルバブレス", accept: ["ミネルバブレス", "みねるばぶれす"], hint: "防具" },
+    { display: "エスコートガード", accept: ["エスコートガード", "えすこーとがーど"], hint: "防具" },
+    { display: "ミスティール", accept: ["ミスティール", "みすてぃーる"], hint: "防具" },
+    { display: "クリスタルバングル", accept: ["クリスタルバングル", "くりすたるばんぐる"], hint: "防具" },
+    { display: "烈火の腕輪", accept: ["烈火の腕輪", "れっかのうでわ"], hint: "防具" },
+    { display: "フォースブレス", accept: ["フォースブレス", "ふぉーすぶれす"], hint: "防具" },
+    { display: "天雷の腕輪", accept: ["天雷の腕輪", "てんらいのうでわ"], hint: "防具" },
+    { display: "極光の腕輪", accept: ["極光の腕輪", "きょっこうのうでわ"], hint: "防具" },
+    { display: "神羅甲型防具改", accept: ["神羅甲型防具改", "しんらこうがたぼうぐかい"], hint: "防具" },
+    { display: "インペリアルガード", accept: ["インペリアルガード", "いんぺりあるがーど"], hint: "防具" },
+    { display: "アダマンバングル", accept: ["アダマンバングル", "あだんばんぐる"], hint: "防具" },
+    { display: "ウォーリアバングル", accept: ["ウォーリアバングル", "うぉーりあばんぐる"], hint: "防具" },
+    { display: "ザイドリッツ", accept: ["ザイドリッツ", "ざいどりっつ"], hint: "防具" },
+
+    // アクセサリ
+    { display: "パワーリスト", accept: ["パワーリスト", "ぱわーりすと"], hint: "アクセサリ" },
+    { display: "防弾チョッキ", accept: ["防弾チョッキ", "ぼうだんちょっき"], hint: "アクセサリ" },
+    { display: "イヤリング", accept: ["イヤリング", "いやりんぐ"], hint: "アクセサリ" },
+    { display: "タリスマン", accept: ["タリスマン", "たりすまん"], hint: "アクセサリ" },
+    { display: "チョコボのはね", accept: ["チョコボのはね", "ちょこぼのはね"], hint: "アクセサリ" },
+    { display: "お守り", accept: ["お守り", "おまもり"], hint: "アクセサリ" },
+    { display: "チャンピオンベルト", accept: ["チャンピオンベルト", "ちゃんぴおんべると"], hint: "アクセサリ" },
+    { display: "ポイズンリング", accept: ["ポイズンリング", "ぽいずんりんぐ"], hint: "アクセサリ" },
+    { display: "タフネスリング", accept: ["タフネスリング", "たふねすりんぐ"], hint: "アクセサリ" },
+    { display: "サークレット", accept: ["サークレット", "さーくれっと"], hint: "アクセサリ" },
+    { display: "星のペンダント", accept: ["星のペンダント", "ほしのぺだんと"], hint: "アクセサリ" },
+    { display: "銀縁メガネ", accept: ["銀縁メガネ", "ぎんぶちめがね"], hint: "アクセサリ" },
+    { display: "ハチマキ", accept: ["ハチマキ", "はちまき"], hint: "アクセサリ" },
+    { display: "フェアリーリング", accept: ["フェアリーリング", "ふぇありーりんぐ"], hint: "アクセサリ" },
+    { display: "ジュエルリング", accept: ["ジュエルリング", "じゅえるりんぐ"], hint: "アクセサリ" },
+    { display: "ホワイトケープ", accept: ["ホワイトケープ", "ほわいとけーぷ"], hint: "アクセサリ" },
+    { display: "エルメスの靴", accept: ["エルメスの靴", "えるめすのくつ"], hint: "アクセサリ" },
+    { display: "安らぎの指輪", accept: ["安らぎの指輪", "やすらぎのゆびわ"], hint: "アクセサリ" },
+    { display: "リボン", accept: ["リボン", "りぼん"], hint: "アクセサリ" },
+    { display: "炎の指輪", accept: ["炎の指輪", "ほのおのゆびわ"], hint: "アクセサリ" },
+    { display: "冷気の指輪", accept: ["冷気の指輪", "れいきのゆびわ"], hint: "アクセサリ" },
+    { display: "雷の指輪", accept: ["雷の指輪", "かみなりのゆびわ"], hint: "アクセサリ" },
+    { display: "水の指輪", accept: ["水の指輪", "みずのゆびわ"], hint: "アクセサリ" },
+    { display: "テトラエレメンタル", accept: ["テトラエレメンタル", "てとらえれめんたる"], hint: "アクセサリ" },
+    { display: "セーフティビット", accept: ["セーフティビット", "せーふてぃびっと"], hint: "アクセサリ" },
+    { display: "怒りの指輪", accept: ["怒りの指輪", "いかりのゆびわ"], hint: "アクセサリ" },
+    { display: "呪いの指輪", accept: ["呪いの指輪", "のろいのゆびわ"], hint: "アクセサリ" },
+    { display: "守りの指輪", accept: ["守りの指輪", "まもりのゆびわ"], hint: "アクセサリ" },
+    { display: "タマのすず", accept: ["タマのすず", "たまのすず"], hint: "アクセサリ" },
+    { display: "リフレクトリング", accept: ["リフレクトリング", "りふれくとりんぐ"], hint: "アクセサリ" },
+    { display: "盗賊の小手", accept: ["盗賊の小手", "とうぞくのこて"], hint: "アクセサリ" },
+    { display: "ヒュプノクラウン", accept: ["ヒュプノクラウン", "ひゅぷのくらうん"], hint: "アクセサリ" },
+
+    // アイテム
+    { display: "ポーション", accept: ["ポーション", "ぽーしょん"], hint: "アイテム" },
+    { display: "ハイポーション", accept: ["ハイポーション", "はいぽーしょん"], hint: "アイテム" },
+    { display: "エクスポーション", accept: ["エクスポーション", "えくすぽーしょん"], hint: "アイテム" },
+    { display: "エーテル", accept: ["エーテル", "えーてる"], hint: "アイテム" },
+    { display: "エーテルターボ", accept: ["エーテルターボ", "えーてるたーぼ"], hint: "アイテム" },
+    { display: "エリクサー", accept: ["エリクサー", "えりくさー"], hint: "アイテム" },
+    { display: "ラストエリクサー", accept: ["ラストエリクサー", "らすとえりくさー"], hint: "アイテム" },
+    { display: "テント", accept: ["テント", "てんと"], hint: "アイテム" },
+    { display: "フェニックスの尾", accept: ["フェニックスの尾", "ふぇにっくすのお"], hint: "アイテム" },
+    { display: "毒消し", accept: ["毒消し", "どくけし"], hint: "アイテム" },
+    { display: "金の針", accept: ["金の針", "きんのはり"], hint: "アイテム" },
+    { display: "乙女のキッス", accept: ["乙女のキッス", "おとめのきっす"], hint: "アイテム" },
+    { display: "うちでのこづち", accept: ["うちでのこづち"], hint: "アイテム" },
+    { display: "やまびこえんまく", accept: ["やまびこえんまく"], hint: "アイテム" },
+    { display: "目薬", accept: ["目薬", "めぐすり"], hint: "アイテム" },
+    { display: "興奮剤", accept: ["興奮剤", "こうふんざい"], hint: "アイテム" },
+    { display: "鎮静剤", accept: ["鎮静剤", "ちんせいざい"], hint: "アイテム" },
+    { display: "万能薬", accept: ["万能薬", "ばんのうやく"], hint: "アイテム" },
+    { display: "けむりだま", accept: ["けむりだま"], hint: "アイテム" },
+    { display: "スピードドリンク", accept: ["スピードドリンク", "すぴーどどりんく"], hint: "アイテム" },
+    { display: "英雄の薬", accept: ["英雄の薬", "えいゆうのくすり"], hint: "アイテム" },
+    { display: "ワクチン", accept: ["ワクチン", "わくちん"], hint: "アイテム" },
+    { display: "光のカーテン", accept: ["光のカーテン", "ひかりのかーてん"], hint: "アイテム" },
+    { display: "月のカーテン", accept: ["月のカーテン", "つきのかーてん"], hint: "アイテム" },
+    { display: "反射ミラー", accept: ["反射ミラー", "はんしゃみらー"], hint: "アイテム" },
+    { display: "聖なるトーチ", accept: ["聖なるトーチ", "せいなるとーち"], hint: "アイテム" },
+    { display: "ファイアカクテル", accept: ["ファイアカクテル", "ふぁいあかくてる"], hint: "アイテム" },
+    { display: "火龍の牙", accept: ["火龍の牙", "かりゅうのきば"], hint: "アイテム" },
+    { display: "火とん", accept: ["火とん", "かとん"], hint: "アイテム" },
+    { display: "南極の風", accept: ["南極の風", "なんきょくのかぜ"], hint: "アイテム" },
+    { display: "冷気の結晶", accept: ["冷気の結晶", "れいきのけっしょう"], hint: "アイテム" },
+    { display: "電撃鳥の角", accept: ["電撃鳥の角", "dengeki"], hint: "アイテム" },
+    { display: "雷迅", accept: ["雷迅", "らいじん"], hint: "アイテム" },
+    { display: "双龍の牙", accept: ["双龍の牙", "そうりゅうのきば"], hint: "アイテム" },
+    { display: "大地のドラム", accept: ["大地のドラム", "だいちのどらむ"], hint: "アイテム" },
+    { display: "大地のハンマー", accept: ["大地のハンマー", "だいちのはんまー"], hint: "アイテム" },
+    { display: "巨鳥のハネ", accept: ["巨鳥のハネ", "きょちょうのはね"], hint: "アイテム" },
+    { display: "海龍のウロコ", accept: ["海龍のウロコ", "かいりゅうのうろこ"], hint: "アイテム" },
+    { display: "重力球", accept: ["重力球", "じゅうりょくきゅう"], hint: "アイテム" },
+    { display: "時空弾", accept: ["時空弾", "じくうだん"], hint: "アイテム" },
+    { display: "手榴弾", accept: ["手榴弾", "しゅりゅうだん"], hint: "アイテム" },
+    { display: "Sマイン", accept: ["Sマイン", "えすまいん"], hint: "アイテム" },
+    { display: "203ミリ砲弾", accept: ["203ミリ砲弾", "にひゃくさんみりほうだん"], hint: "アイテム" },
+    { display: "ボムのかけら", accept: ["ボムのかけら"], hint: "アイテム" },
+    { display: "ボムの右腕", accept: ["ボムの右腕", "ぼむのみぎうで"], hint: "アイテム" },
+    { display: "星の砂", accept: ["星の砂", "ほしのすな"], hint: "アイテム" },
+    { display: "バンパイアの牙", accept: ["バンパイアの牙", "ばんぱいあのきば"], hint: "アイテム" },
+    { display: "ゴーストハンド", accept: ["ゴーストハンド", "ごーすとはんど"], hint: "アイテム" },
+    { display: "金の砂時計", accept: ["金の砂時計", "きんのすなどけい"], hint: "アイテム" },
+    { display: "死神のキッス", accept: ["死神のキッス", "しにがみのきっす"], hint: "アイテム" },
+    { display: "クモの糸", accept: ["クモの糸", "くものいと"], hint: "アイテム" },
+    { display: "ドリームパウダー", accept: ["ドリームパウダー", "どりーむぱうだー"], hint: "アイテム" },
+    { display: "サイレントマスク", accept: ["サイレントマスク", "さいれんとますく"], hint: "アイテム" },
+    { display: "戦いのゴング", accept: ["戦いのゴング", "たたかいのごんぐ"], hint: "アイテム" },
+    { display: "惑わし草", accept: ["惑わし草", "まどわしぐさ"], hint: "アイテム" },
+    { display: "有害物質", accept: ["有害物質", "ゆうがいぶっしつ"], hint: "アイテム" },
+    { display: "モルボルの触手", accept: ["モルボルの触手", "もるぼるのしょくしゅ"], hint: "アイテム" },
+    { display: "バジリスクの爪", accept: ["バジリスクの爪", "ばじりすくのつめ"], hint: "アイテム" },
+    { display: "モズのはやにえ", accept: ["モズのはやにえ"], hint: "アイテム" },
+    { display: "チヂマール", accept: ["チヂマール", "ちぢまーる"], hint: "アイテム" },
+    { display: "イカスミ", accept: ["イカスミ", "いかすみ"], hint: "アイテム" },
+    { display: "しびれ針", accept: ["しびれ針", "しびればり"], hint: "アイテム" },
+    { display: "魔女の大釜", accept: ["魔女の大釜", "まじょのおおかま"], hint: "アイテム" },
+    { display: "シルキスの野菜", accept: ["シルキスの野菜", "しるきすのやさい"], hint: "アイテム" },
+    { display: "ミメットの野菜", accept: ["ミメットの野菜", "みめっとのやさい"], hint: "アイテム" },
+    { display: "クリーエの野菜", accept: ["クリーエの野菜", "くりーえのやさい"], hint: "アイテム" },
+    { display: "パサーナの野菜", accept: ["パサーナの野菜", "ぱさーなのやさい"], hint: "アイテム" },
+    { display: "カラッカの野菜", accept: ["カラッカの野菜", "からっかのやさい"], hint: "アイテム" },
+    { display: "レイゲンの野菜", accept: ["レイゲンの野菜", "れいげんのやさい"], hint: "アイテム" },
+    { display: "ギザールの野菜", accept: ["ギザールの野菜", "ぎざーるのやさい"], hint: "アイテム" },
+    { display: "タンタルの野菜", accept: ["タンタルの野菜", "たんたるのやさい"], hint: "アイテム" },
+    { display: "ゼイオの実", accept: ["ゼイオの実", "ぜいおのみ"], hint: "アイテム" },
+    { display: "カラブの実", accept: ["カラブの実", "からぶのみ"], hint: "アイテム" },
+    { display: "ポロフの実", accept: ["ポロフの実", "ぽろふのみ"], hint: "アイテム" },
+    { display: "パラムの実", accept: ["パラムの実", "ぱらむのみ"], hint: "アイテム" },
+    { display: "ラサンの実", accept: ["ラサンの実", "らさんのみ"], hint: "アイテム" },
+    { display: "サラハの実", accept: ["サラハの実", "さらはのみ"], hint: "アイテム" },
+    { display: "ルチルの実", accept: ["ルチルの実", "るちるのみ"], hint: "アイテム" },
+    { display: "ピピオの実", accept: ["ピピオの実", "ぴぴおのみ"], hint: "アイテム" },
+    { display: "超究武神覇斬", accept: ["超究武神覇斬", "ちょうきゅうぶしんはざん"], hint: "アイテム" },
+    { display: "カタストロフィ", accept: ["カタストロフィ", "かたすとろふぃ"], hint: "アイテム" },
+    { display: "ファイナルヘヴン", accept: ["ファイナルヘヴン", "ふぁいなるへゔん"], hint: "アイテム" },
+    { display: "大いなる福音", accept: ["大いなる福音", "おおいなるふくいん"], hint: "アイテム" },
+    { display: "コスモメモリー", accept: ["コスモメモリー", "こすもめもりー"], hint: "アイテム" },
+    { display: "森羅万象", accept: ["森羅万象", "しんらばんしょう"], hint: "アイテム" },
+    { display: "カオス", accept: ["カオス", "かおす"], hint: "アイテム" },
+    { display: "ハイウインド", accept: ["ハイウインド", "はいういんど"], hint: "アイテム" },
+    { display: "パワーアップ", accept: ["パワーアップ", "ぱわーあっぷ"], hint: "アイテム" },
+    { display: "ガードアップ", accept: ["ガードアップ", "がーどあっぷ"], hint: "アイテム" },
+    { display: "マジックアップ", accept: ["マジックアップ", "まじっくあっぷ"], hint: "アイテム" },
+    { display: "マインドアップ", accept: ["マインドアップ", "まいんどあっぷ"], hint: "アイテム" },
+    { display: "スピードアップ", accept: ["スピードアップ", "すぴーどあっぷ"], hint: "アイテム" },
+    { display: "ラックアップ", accept: ["ラックアップ", "らっくあっぷ"], hint: "アイテム" },
+];
+
+    let foundCount = 0;
+    let isGameOver = false;
+    let answeredIndices = new Set();
+
+    const input = document.getElementById('answerInput');
+    const remainingText = document.getElementById('remaining');
+    const totalText = document.getElementById('total');
+    const listContainer = document.getElementById('answerList');
+    const messageEl = document.getElementById('message');
+    const giveupBtn = document.getElementById('giveupBtn');
+    const retryBtn = document.getElementById('retryBtn');
+    
+    // 進捗ゲージ用の変数
+    const limitFill = document.getElementById('limitFill');
+    const gaugeWrapper = document.getElementById('gaugeWrapper');
+
+function updateLimitGauge() {
+    const percent = Math.floor((foundCount / quizData.length) * 100); // 整数で計算
+    if(limitFill) limitFill.style.width = percent + "%";
+
+    // ★ パーセント表示のテキストを更新
+    const percentDisplay = document.getElementById('progressPercent');
+    if (percentDisplay) {
+        // 全問正解なら「LIMIT BREAK !!」、それ以外は「◯%」を表示
+        percentDisplay.textContent = (foundCount === quizData.length) ? "LIMIT BREAK !!" : percent + "%";
+    }
+
+    if (foundCount === quizData.length && quizData.length > 0) {
+        gaugeWrapper.classList.add('limit-max');
+    } else {
+        gaugeWrapper.classList.remove('limit-max');
+    }
+}
+    function init() {
+        foundCount = 0;
+        isGameOver = false;
+        answeredIndices.clear();
+        listContainer.innerHTML = '';
+        input.disabled = false;
+        input.value = '';
+        input.placeholder = config.placeholderNormal;
+        giveupBtn.style.display = 'inline-block';
+        retryBtn.style.display = 'none';
+        remainingText.textContent = quizData.length;
+        totalText.textContent = quizData.length;
+        messageEl.textContent = '';
+
+        quizData.forEach((item, index) => {
+            const div = document.createElement('div');
+            div.className = 'item';
+            div.id = 'target-' + index;
+            div.innerHTML = `<div class="answer-text">${item.hint}</div>`;
+            listContainer.appendChild(div);
+        });
+
+        loadProgress();
+        updateLimitGauge();
+    }
+
+    function loadProgress() {
+        const savedData = localStorage.getItem(config.storageKey);
+        if (savedData) {
+            const savedIndices = JSON.parse(savedData);
+            savedIndices.forEach(index => {
+                if (index < quizData.length) {
+                    answeredIndices.add(index);
+                    updateItemDisplay(index, true);
+                    foundCount++;
+                }
+            });
+            remainingText.textContent = quizData.length - foundCount;
+            if (foundCount > 0) {
+                showMessage("続きから開始します", "#4caf50");
+            }
+            if (foundCount === quizData.length) {
+                finishGame("全問正解済みです！", "#ff9800");
+            }
+        }
+        updateLimitGauge();
+    }
+
+    function saveProgress() {
+        const dataArray = Array.from(answeredIndices);
+        localStorage.setItem(config.storageKey, JSON.stringify(dataArray));
+    }
+
+    function clearProgress() {
+        localStorage.removeItem(config.storageKey);
+    }
+
+input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !isGameOver) {
+            const val = input.value.trim();
+            if (val === "") return;
+            let targetIndex = quizData.findIndex(item => item.accept.includes(val));
+
+            if (targetIndex !== -1) {
+                if (answeredIndices.has(targetIndex)) {
+                    showMessage("回答済みです", "#ffcc00");
+                    // すでに正解済みでも、その場所を教えてあげるためにスクロールさせる
+                    document.getElementById('target-' + targetIndex).scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'center'
+                    });
+                } else {
+                    answeredIndices.add(targetIndex);
+                    updateItemDisplay(targetIndex, true); // ここでスクロールが実行されます
+                    foundCount++;
+                    remainingText.textContent = quizData.length - foundCount;
+                    showMessage("正解！", "#4caf50");
+                    saveProgress();
+                    updateLimitGauge();
+                    if (foundCount === quizData.length) finishGame("全問正解！おめでとう！", "#ff9800");
+                }
+            } else {
+                showMessage("ミス！", "#e91e63");
+            }
+            input.value = '';
+        }
+    });
+
+function updateItemDisplay(index, isCorrect) {
+        const targetEl = document.getElementById('target-' + index);
+        const data = quizData[index];
+        targetEl.innerHTML = `
+            <div class="hint-text">${data.hint}</div>
+            <div class="answer-text">${data.display}</div>
+        `;
+        
+        if (isCorrect) {
+            targetEl.classList.add('found');
+            // --- 追加: スクロール処理 ---
+            targetEl.scrollIntoView({
+                behavior: 'smooth', // 滑らかに動かす
+                block: 'center'      // 画面の中央にくるように調整
+            });
+        } else {
+            targetEl.classList.add('missed');
+        }
+    }
+
+    giveupBtn.addEventListener('click', () => {
+        revealAllAnswers();
+        finishGame("終了！答え合わせです", "#ffffff");
+    });
+
+    retryBtn.addEventListener('click', () => {
+        if(confirm("進行状況をリセットして最初から遊びますか？")) {
+            clearProgress();
+            init();
+        }
+    });
+
+    function revealAllAnswers() {
+        quizData.forEach((item, index) => {
+            if (!answeredIndices.has(index)) {
+                updateItemDisplay(index, false);
+            }
+        });
+    }
+
+    function finishGame(msg, color) {
+        isGameOver = true;
+        input.disabled = true;
+        input.placeholder = config.placeholderGameOver;
+        input.value = '';
+        giveupBtn.style.display = 'none';
+        retryBtn.style.display = 'inline-block';
+        showMessage(msg, color);
+        updateLimitGauge();
+    }
+
+    function showMessage(text, color) {
+        messageEl.textContent = text;
+        messageEl.style.color = color;
+        if (!isGameOver) {
+            setTimeout(() => { if (messageEl.textContent === text) messageEl.textContent = ""; }, 1500);
+        }
+    }
+
+    init();
+</script>
+
+</body>
+</html>

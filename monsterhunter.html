@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>モンスターハンター 別名からモンスターいえるかな</title>
+    <style>
+        /* モンスターハンター：羊皮紙と岩の背景 */
+        body { 
+            font-family: "Hiragino Mincho ProN", "MS PMincho", serif; 
+            text-align: center; 
+            padding: 20px; 
+            background: #1a1612; /* 暗い岩場 */
+            background-image: 
+                url('https://www.transparenttextures.com/patterns/dark-matter.png'),
+                radial-gradient(circle, #2c241e 0%, #1a1612 100%);
+            color: #3e2a16; 
+            margin: 0; 
+        }
+
+        /* 羊皮紙コンテナ */
+        .container { 
+            max-width: 1500px; 
+            margin: 20px auto; 
+            background: #e6d3a7; /* 羊皮紙の色 */
+            background-image: url('https://www.transparenttextures.com/patterns/paper-fibers.png');
+            padding: 40px; 
+            border-radius: 4px; 
+            border: 2px solid #5d4037;
+            box-shadow: 
+                0 0 0 10px #e6d3a7,
+                0 0 0 15px #3e2a16,
+                0 20px 50px rgba(0,0,0,0.8); 
+            position: relative;
+        }
+
+        /* 古い巻物の端の装飾（簡易） */
+        .container::before, .container::after {
+            content: "";
+            position: absolute;
+            top: 0; bottom: 0; width: 20px;
+            background: linear-gradient(to right, rgba(0,0,0,0.1), transparent);
+        }
+
+        /* ヘッダー部分 */
+        .sticky-header { 
+            position: sticky; 
+            top: 0; 
+            background: rgba(230, 211, 167, 0.9); 
+            padding: 20px 0; 
+            z-index: 100; 
+            border-bottom: 3px double #5d4037; 
+            margin-bottom: 25px; 
+        }
+
+        h2 { 
+            margin: 0; 
+            color: #3e2a16; 
+            font-size: 2em;
+            letter-spacing: 2px;
+            text-shadow: 1px 1px 1px rgba(255,255,255,0.5);
+            border-bottom: 2px solid #5d4037;
+            display: inline-block;
+            padding-bottom: 5px;
+        }
+
+        /* 斬れ味ゲージ風・進行状況バー */
+        .limit-gauge-outer {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 5px;
+            background: #2a221f; /* 金属の枠 */
+            border: 3px solid #8d6e63;
+            border-radius: 2px;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
+        }
+
+        .limit-gauge-bg {
+            height: 20px;
+            background: #424242;
+            overflow: hidden;
+            position: relative;
+            clip-path: polygon(0% 0%, 98% 0%, 100% 50%, 98% 100%, 0% 100%);
+        }
+
+        #limitFill {
+            height: 100%;
+            width: 0%;
+            /* 斬れ味ゲージ風グラデーション（赤〜黄〜緑〜青〜白） */
+            background: linear-gradient(to right, #d32f2f, #fbc02d, #4caf50, #0288d1, #ffffff);
+            transition: width 0.4s ease-out;
+        }
+
+        .limit-label {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 14px;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 1px 1px 2px #000;
+            z-index: 2;
+        }
+
+        .status { margin: 15px 0; font-size: 1.3em; font-weight: bold; color: #5d4037; }
+        #message { height: 30px; font-weight: bold; margin-bottom: 10px; color: #bf360c; font-size: 1.2em; }
+
+        input { 
+            font-size: 20px; 
+            padding: 12px 20px; 
+            width: 50%; 
+            border: 2px solid #5d4037; 
+            background: #fdf5e6; 
+            color: #3e2a16; 
+            outline: none;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .btn { 
+            padding: 12px 30px; 
+            font-size: 16px; 
+            cursor: pointer; 
+            border: 2px solid #5d4037; 
+            background: #8d6e63; 
+            color: #fdf5e6; 
+            transition: 0.2s; 
+            font-weight: bold;
+            box-shadow: 0 4px 0 #3e2a16;
+            margin: 5px;
+        }
+        .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #3e2a16; }
+        .btn:hover { background: #5d4037; }
+
+        /* リスト部分 */
+        .list { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); 
+            gap: 12px; 
+            margin-top: 30px; 
+        }
+
+        .item { 
+            padding: 15px; 
+            background: rgba(93, 64, 55, 0.05); /* 薄い革の色 */
+            border: 1px solid #a1887f;
+            color: #a1887f; 
+            transition: 0.3s;
+            position: relative;
+        }
+
+        /* 発見済み（納品完了風） */
+        .item.found { 
+            background: #fff; 
+            color: #3e2a16; 
+            border: 2px solid #5d4037; 
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+        }
+        .item.found::after {
+            content: "CLEAR";
+            position: absolute;
+            top: 2px;
+            right: 5px;
+            font-size: 10px;
+            color: #d32f2f;
+            border: 1px solid #d32f2f;
+            padding: 1px 3px;
+            transform: rotate(15deg);
+            font-weight: bold;
+        }
+
+        .hint-text { font-size: 0.85em; color: #795548; margin-bottom: 5px; border-bottom: 1px solid rgba(0,0,0,0.1); }
+        .answer-text { font-size: 1.1em; font-weight: bold; }
+        
+        .item.missed { background: rgba(211, 47, 47, 0.1); border-color: #d32f2f; }
+        .item.missed .answer-text { color: #d32f2f; text-decoration: line-through; }
+
+        /* スクロールバーのカスタマイズ */
+        ::-webkit-scrollbar { width: 10px; }
+        ::-webkit-scrollbar-track { background: #e6d3a7; }
+        ::-webkit-scrollbar-thumb { background: #5d4037; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="sticky-header">
+        <h2>モンスターハンター 別名からモンスターいえるかな</h2>
+        <div class="limit-gauge-outer" id="gaugeWrapper">
+            <div class="limit-label" id="progressPercent">0%</div> 
+            <div class="limit-gauge-bg">
+                <div id="limitFill"></div>
+            </div>
+        </div>
+        <div class="status">未討伐: <span id="remaining">--</span> / <span id="total">--</span></div>
+        <div id="message"></div>
+        <input type="text" id="answerInput" placeholder="名称を入力..." autofocus autocomplete="off">
+        <button class="btn giveup-btn" id="giveupBtn">クエストリタイア</button>
+        <button class="btn retry-btn" id="retryBtn" style="display:none;">再受注</button>
+    </div>
+    <div class="list" id="answerList"></div>
+</div>
+
+<script>
+    const config = {
+        placeholderNormal: "モンスター名を入力...",
+        placeholderGameOver: "クエスト終了",
+        storageKey: "quiz_save_" + document.title
+    };
+
+    const quizData = [
+    { display: "クイーンランゴスタ", accept: ["クイーンランゴスタ", "くいーんらんごすた"], hint: "女王虫" },
+    { display: "オルタロス", accept: ["オルタロス", "おるたろす"], hint: "甲虫" },
+    { display: "ブナハブラ", accept: ["ブナハブラ", "ぶなはぶら"], hint: "飛甲虫" },
+    { display: "クンチュウ", accept: ["クンチュウ", "くんちゅう"], hint: "盾虫" },
+    { display: "アルセルタス", accept: ["アルセルタス", "あるせるたす"], hint: "徹甲虫" },
+    { display: "アルセルタス亜種", accept: ["アルセルタス亜種", "あるせるたすあしゅ"], hint: "斧甲虫" },
+    { display: "ゲネル・セルタス", accept: ["ゲネルセルタス", "げねるせるたす"], hint: "重甲虫" },
+    { display: "ゲネル・セルタス亜種", accept: ["ゲネルセルタス亜種", "げねるせるたすあしゅ"], hint: "砲甲虫" },
+    { display: "アトラル・カ", accept: ["アトラルカ", "あとらるか"], hint: "閣螳螂" },
+    { display: "ヤオザミ/ダイミョウザザミ", accept: ["ダイミョウザザミ", "だいみょうざざみ", "やおざみ"], hint: "盾蟹" },
+    { display: "ガミザミ/ショウグンギザミ", accept: ["ショウグンギザミ", "しょうぐんぎざみ", "がみざみ"], hint: "鎌蟹" },
+    { display: "シェンガオレン", accept: ["シェンガオレン", "しぇんがおれん"], hint: "砦蟹" },
+    { display: "ドスファンゴ", accept: ["ドスファンゴ", "どすふぁんご"], hint: "大猪" },
+    { display: "ババコンガ", accept: ["ババコンガ", "ばばこんが"], hint: "桃毛獣" },
+    { display: "ババコンガ亜種", accept: ["ババコンガ亜種", "ばばこんがあしゅ"], hint: "緑毛獣" },
+    { display: "ドドブランゴ", accept: ["ドドブランゴ", "どどぶらんご"], hint: "雪獅子" },
+    { display: "ドドブランゴ亜種", accept: ["ドドブランゴ亜種", "どどぶらんごあしゅ"], hint: "砂獅子" },
+    { display: "ラージャン", accept: ["ラージャン", "らーじゃん"], hint: "金獅子" },
+    { display: "アオアシラ", accept: ["アオアシラ", "あおあしら"], hint: "青熊獣" },
+    { display: "ウルクスス", accept: ["ウルクスス", "うるくすす"], hint: "白兎獣" },
+    { display: "ラングロトラ", accept: ["ラングロトラ", "らんぐろとら"], hint: "赤甲獣" },
+    { display: "ケチャワチャ", accept: ["ケチャワチャ", "けちゃわちゃ"], hint: "奇猿狐" },
+    { display: "ケチャワチャ亜種", accept: ["ケチャワチャ亜種", "けちゃわちゃあしゅ"], hint: "白猿狐" },
+    { display: "ガムート", accept: ["ガムート", "がむーと"], hint: "巨獣" },
+    { display: "ブンブジナ", accept: ["ブンブジナ", "ぶんぶじな"], hint: "狸獣" },
+    { display: "ビシュテンゴ", accept: ["ビシュテンゴ", "びしゅてんご"], hint: "天狗獣" },
+    { display: "ビシュテンゴ亜種", accept: ["ビシュテンゴ亜種", "びしゅてんごあしゅ"], hint: "緋天狗獣" },
+    { display: "ゴシャハギ", accept: ["ゴシャハギ", "ごしゃはぎ"], hint: "雪鬼獣" },
+    { display: "ガランゴルム", accept: ["ガランゴルム", "がらんごるむ"], hint: "剛纏獣" },
+    { display: "ドシャグマ", accept: ["ドシャグマ", "どしゃぐま"], hint: "闢獣" },
+    { display: "アジャラカン", accept: ["アジャラカン", "あじゃらかん"], hint: "赫猿獣" },
+    { display: "イャンクック", accept: ["イャンクック", "いゃんくっく"], hint: "怪鳥" },
+    { display: "イャンクック亜種", accept: ["イャンクック亜種", "いゃんくっくあしゅ"], hint: "青怪鳥" },
+    { display: "ゲリョス", accept: ["ゲリョス", "げりょす"], hint: "毒怪鳥" },
+    { display: "イャンガルルガ", accept: ["イャンガルルガ", "いゃんがるるが"], hint: "黒狼鳥" },
+    { display: "ヒプノック", accept: ["ヒプノック", "ひぷのっく"], hint: "眠鳥" },
+    { display: "ジャギィ", accept: ["ジャギィ", "じゃぎぃ", "じゃぎぃのす", "どすじゃぎぃ"], hint: "狗竜" },
+    { display: "バギィ", accept: ["バギィ", "ばぎぃ", "どすばぎぃ"], hint: "眠狗竜" },
+    { display: "クルペッコ", accept: ["クルペッコ", "くるぺっこ"], hint: "彩鳥" },
+    { display: "クルペッコ亜種", accept: ["クルペッコ亜種", "くるぺっこあしゅ"], hint: "紅彩鳥" },
+    { display: "ガーグァ", accept: ["ガーグァ", "がーぐぁ"], hint: "丸鳥" },
+    { display: "フロギィ", accept: ["フロギィ", "ふろぎぃ", "どすふろぎぃ"], hint: "毒狗竜" },
+    { display: "マッカォ", accept: ["マッカォ", "まっかぉ", "どすまっかぉ"], hint: "跳狗竜" },
+    { display: "ホロロホルル", accept: ["ホロロホルル", "ほろろほるる"], hint: "夜鳥" },
+    { display: "クルルヤック", accept: ["クルルヤック", "くるるやっく"], hint: "掻鳥" },
+    { display: "ツィツィヤック", accept: ["ツィツィヤック", "つぃつぃやっく"], hint: "眩鳥" },
+    { display: "プケプケ", accept: ["プケプケ", "ぷけぷけ"], hint: "毒妖鳥" },
+    { display: "プケプケ亜種", accept: ["プケプケ亜種", "ぷけぷけあしゅ"], hint: "水妖鳥" },
+    { display: "イズチ", accept: ["イズチ", "いずち", "おさいずち"], hint: "鎌鼬竜" },
+    { display: "アケノシルム", accept: ["アケノシルム", "あけのしるむ"], hint: "傘鳥" },
+    { display: "オルギィ", accept: ["オルギィ", "おるぎぃ"], hint: "狡狗竜" },
+    { display: "ガレオス", accept: ["ガレオス", "がれおす"], hint: "砂竜" },
+    { display: "ガノトトス", accept: ["ガノトトス", "がのととす"], hint: "水竜" },
+    { display: "ガノトトス亜種", accept: ["ガノトトス亜種", "がのととすあしゅ"], hint: "翠水竜" },
+    { display: "ヴォルガノス", accept: ["ヴォルガノス", "ヴぉるがのす", "ゔぉるがのす"], hint: "溶岩竜" },
+    { display: "ジュラトドス", accept: ["ジュラトドス", "じゅらとどす"], hint: "泥魚竜" },
+    { display: "ブラントドス", accept: ["ブラントドス", "ぶらんとどす"], hint: "凍魚竜" },
+    { display: "リオレウス", accept: ["リオレウス", "りおれうす"], hint: "火竜" },
+    { display: "リオレウス亜種", accept: ["リオレウス亜種", "りおれうすあしゅ"], hint: "蒼火竜" },
+    { display: "リオレウス希少種", accept: ["リオレウス希少種", "りおれうすきしょうしゅ"], hint: "銀火竜" },
+    { display: "リオレイア", accept: ["リオレイア", "りおれいあ"], hint: "雌火竜" },
+    { display: "リオレイア亜種", accept: ["リオレイア亜種", "りおれいああしゅ"], hint: "桜火竜" },
+    { display: "リオレイア希少種", accept: ["リオレイア希少種", "りおれいあきしょうしゅ"], hint: "金火竜" },
+    { display: "バサルモス", accept: ["バサルモス", "ばさるもす"], hint: "岩竜" },
+    { display: "バサルモス亜種", accept: ["バサルモス亜種", "ばさるもすあしゅ"], hint: "桃岩竜" },
+    { display: "グラビモス", accept: ["グラビモス", "ぐらびもす"], hint: "鎧竜" },
+    { display: "グラビモス亜種", accept: ["グラビモス亜種", "ぐらびもすあしゅ"], hint: "黒鎧竜" },
+    { display: "フルフル", accept: ["フルフル", "ふるふる"], hint: "奇怪竜" },
+    { display: "フルフル亜種", accept: ["フルフル亜種", "ふるふるあしゅ"], hint: "赤怪竜" },
+    { display: "モノブロス", accept: ["モノブロス", "ものぶろす"], hint: "一角竜" },
+    { display: "モノブロス亜種", accept: ["モノブロス亜種", "ものぶろすあしゅ"], hint: "白一角竜" },
+    { display: "ディアブロス", accept: ["ディアブロス", "でぃあぶろす"], hint: "角竜" },
+    { display: "ディアブロス亜種", accept: ["ディアブロス亜種", "でぃあぶろすあしゅ"], hint: "黒角竜" },
+    { display: "ティガレックス", accept: ["ティガレックス", "てぃがれっくす"], hint: "轟竜" },
+    { display: "ティガレックス亜種", accept: ["ティガレックス亜種", "てぃがれっくすあしゅ"], hint: "黒轟竜" },
+    { display: "ティガレックス希少種", accept: ["ティガレックス希少種", "てぃがれっくすきしょうしゅ"], hint: "大轟竜" },
+    { display: "アカムトルム", accept: ["アカムトルム", "あかむとるむ"], hint: "覇竜" },
+    { display: "ナルガクルガ", accept: ["ナルガクルガ", "なるがくるが"], hint: "迅竜" },
+    { display: "ナルガクルガ亜種", accept: ["ナルガクルガ亜種", "なるがくるがあしゅ"], hint: "緑迅竜" },
+    { display: "ナルガクルガ希少種", accept: ["ナルガクルガ希少種", "なるがくるがきしょうしゅ"], hint: "月迅竜" },
+    { display: "ウカムルバス", accept: ["ウカムルバス", "うかむるばす"], hint: "崩竜" },
+    { display: "ギギネブラ", accept: ["ギギネブラ", "ぎぎねぶら"], hint: "毒怪竜" },
+    { display: "ギギネブラ亜種", accept: ["ギギネブラ亜種", "ぎぎねぶらあしゅ"], hint: "電怪竜" },
+    { display: "ベリオロス", accept: ["ベリオロス", "べりおろす"], hint: "氷牙竜" },
+    { display: "ベリオロス亜種", accept: ["ベリオロス亜種", "べりおろすあしゅ"], hint: "風牙竜" },
+    { display: "セルレギオス", accept: ["セルレギオス", "せるれぎおす"], hint: "千刃竜" },
+    { display: "ライゼクス", accept: ["ライゼクス", "らいぜくす"], hint: "電竜" },
+    { display: "パオウルムー", accept: ["パオウルムー", "ぱおうるむー"], hint: "浮空竜" },
+    { display: "パオウルムー亜種", accept: ["パオウルムー亜種", "ぱおうるむーあしゅ"], hint: "浮眠竜" },
+    { display: "レイギエナ", accept: ["レイギエナ", "れいぎえな"], hint: "風漂竜" },
+    { display: "バゼルギウス", accept: ["バゼルギウス", "ばぜるぎうす"], hint: "爆鱗竜" },
+    { display: "エスピナス", accept: ["エスピナス", "えすぴなす"], hint: "棘竜" },
+    { display: "エスピナス亜種", accept: ["エスピナス亜種", "えすぴなすあしゅ"], hint: "棘茶竜" },
+    { display: "レ・ダウ", accept: ["レダウ", "れだう"], hint: "煌雷竜" },
+    { display: "アルシュベルド", accept: ["アルシュベルド", "あるしゅべるど"], hint: "鎖刃竜" },
+    { display: "ラギアクルス", accept: ["ラギアクルス", "らぎあくるす"], hint: "海竜" },
+    { display: "ラギアクルス亜種", accept: ["ラギアクルス亜種", "らぎあくるすあしゅ"], hint: "白海竜" },
+    { display: "ラギアクルス希少種", accept: ["ラギアクルス希少種", "らぎあくるすきしょうしゅ"], hint: "冥海竜" },
+    { display: "ルドロス", accept: ["ルドロス", "るどろす"], hint: "水生獣" },
+    { display: "ロアルドロス", accept: ["ロアルドロス", "ろあるどろす"], hint: "水獣" },
+    { display: "ロアルドロス亜種", accept: ["ロアルドロス亜種", "ろあるどろすあしゅ"], hint: "紫水獣" },
+    { display: "チャナガブル", accept: ["チャナガブル", "ちゃながぶる"], hint: "灯魚竜" },
+    { display: "ウロコトル", accept: ["ウロコトル", "うろことる"], hint: "溶岩獣" },
+    { display: "アグナコトル", accept: ["アグナコトル", "あぐなことる"], hint: "炎戈竜" },
+    { display: "アグナコトル亜種", accept: ["アグナコトル亜種", "あぐなことるあしゅ"], hint: "凍戈竜" },
+    { display: "ハプルボッカ", accept: ["ハプルボッカ", "はぷるぼっか"], hint: "潜口竜" },
+    { display: "タマミツネ", accept: ["タマミツネ", "たまみつね"], hint: "泡狐竜" },
+    { display: "タマミツネ希少種", accept: ["タマミツネ希少種", "たまみつねきしょうしゅ"], hint: "焔狐竜" },
+    { display: "イソネミクニ", accept: ["イソネミクニ", "いそねみくに"], hint: "人魚竜" },
+    { display: "イソネミクニ亜種", accept: ["イソネミクニ亜種", "いそねみくにあしゅ"], hint: "氷人魚竜" },
+    { display: "オロミドロ", accept: ["オロミドロ", "おろみどろ"], hint: "泥翁竜" },
+    { display: "オロミドロ亜種", accept: ["オロミドロ亜種", "おろみどろあしゅ"], hint: "溶翁竜" },
+    { display: "バーラハーラ", accept: ["バーラハーラ", "ばーらはーら"], hint: "沙海竜" },
+    { display: "ウズ・トゥナ", accept: ["ウズトゥナ", "うずとぅな"], hint: "波衣竜" },
+    { display: "ヒラバミ", accept: ["ヒラバミ", "ひらばみ"], hint: "風鋏竜" },
+    { display: "ジン・ダハド", accept: ["ジンダハド", "じんだはど"], hint: "凍峰竜" },
+    { display: "ボルボロス", accept: ["ボルボロス", "ぼるぼろす"], hint: "土砂竜" },
+    { display: "ボルボロス亜種", accept: ["ボルボロス亜種", "ぼるぼろすあしゅ"], hint: "氷砕竜" },
+    { display: "ウラガンキン", accept: ["ウラガンキン", "うらがんきん"], hint: "爆鎚竜" },
+    { display: "ウラガンキン亜種", accept: ["ウラガンキン亜種", "うらがんきんあしゅ"], hint: "鋼鎚竜" },
+    { display: "イビルジョー", accept: ["イビルジョー", "いびるじょー"], hint: "恐暴竜" },
+    { display: "ドボルベルク", accept: ["ドボルベルク", "どぼるべるく"], hint: "尾槌竜" },
+    { display: "ドボルベルク亜種", accept: ["ドボルベルク亜種", "どぼるべるくあしゅ"], hint: "尾斧竜" },
+    { display: "ブラキディオス", accept: ["ブラキディオス", "ぶらきでぃおす"], hint: "砕竜" },
+    { display: "ディノバルド", accept: ["ディノバルド", "でぃのばるど"], hint: "斬竜" },
+    { display: "ディノバルド亜種", accept: ["ディノバルド亜種", "でぃのばるどあしゅ"], hint: "硫斬竜" },
+    { display: "アンジャナフ", accept: ["アンジャナフ", "あんじゃなふ"], hint: "蛮顎竜" },
+    { display: "アンジャナフ亜種", accept: ["アンジャナフ亜種", "あんじゃなふあしゅ"], hint: "雷顎竜" },
+    { display: "ラドバルキン", accept: ["ラドバルキン", "らどばるきん"], hint: "骨鎚竜" },
+    { display: "バフバロ", accept: ["バフバロ", "ばふばろ"], hint: "猛牛竜" },
+    { display: "ケマトリス", accept: ["ケマトリス", "けまとりす"], hint: "炎尾竜" },
+    { display: "ププロポル", accept: ["ププロポル", "ぷぷろぽる"], hint: "沼噴竜" },
+    { display: "ジンオウガ", accept: ["ジンオウガ", "じんおうが"], hint: "雷狼竜" },
+    { display: "ジンオウガ亜種", accept: ["ジンオウガ亜種", "じんおうがあしゅ"], hint: "獄狼竜" },
+    { display: "ドスジャグラス", accept: ["ドスジャグラス", "どすじゃぐらす"], hint: "賊竜" },
+    { display: "トビカガチ", accept: ["トビカガチ", "とびかがち"], hint: "飛雷竜" },
+    { display: "トビカガチ亜種", accept: ["トビカガチ亜種", "とびかがちあしゅ"], hint: "飛毒竜" },
+    { display: "ドスギルオス", accept: ["ドスギルオス", "どすぎるおす"], hint: "痺賊竜" },
+    { display: "オドガロン", accept: ["オドガロン", "おどがろん"], hint: "惨爪竜" },
+    { display: "オドガロン亜種", accept: ["オドガロン亜種", "おどがろんあしゅ"], hint: "兇爪竜" },
+    { display: "ドドガマル", accept: ["ドドガマル", "どどがまる"], hint: "岩賊竜" },
+    { display: "マガイマガド", accept: ["マガイマガド", "まがいまがど"], hint: "怨虎竜" },
+    { display: "ルナガロン", accept: ["ルナガロン", "るながろん"], hint: "氷狼竜" },
+    { display: "テツカブラ", accept: ["テツカブラ", "てつかぶら"], hint: "鬼蛙" },
+    { display: "テツカブラ亜種", accept: ["テツカブラ亜種", "てつかぶらあしゅ"], hint: "荒鬼蛙" },
+    { display: "ザボアザギル", accept: ["ザボアザギル", "ざぼあざぎる"], hint: "化け鮫" },
+    { display: "ザボアザギル亜種", accept: ["ザボアザギル亜種", "ざぼあざぎるあしゅ"], hint: "虎鮫" },
+    { display: "ヨツミワドウ", accept: ["ヨツミワドウ", "よつみわどう"], hint: "河童蛙" },
+    { display: "チャタカブラ", accept: ["チャタカブラ", "ちゃたかぶら"], hint: "纏蛙" },
+    { display: "ネルスキュラ", accept: ["ネルスキュラ", "ねるすきゅら"], hint: "影蜘蛛" },
+    { display: "ネルスキュラ亜種", accept: ["ネルスキュラ亜種", "ねるすきゅらあしゅ"], hint: "骸蜘蛛" },
+    { display: "ツケヒバキ", accept: ["ツケヒバキ", "つけひばき"], hint: "臣蜘蛛" },
+    { display: "ハゼヒバキ", accept: ["ハゼヒバキ", "はぜひばき"], hint: "衛蜘蛛" },
+    { display: "ヤツカダキ", accept: ["ヤツカダキ", "やつかだき"], hint: "妃蜘蛛" },
+    { display: "ヤツカダキ亜種", accept: ["ヤツカダキ亜種", "やつかだきあしゅ"], hint: "熾妃蜘蛛" },
+    { display: "ラバラ・バリナ", accept: ["ラバラバリナ", "らばらばりな"], hint: "刺花蜘蛛" },
+    { display: "ガブラス", accept: ["ガブラス", "がぶらす"], hint: "翼蛇竜" },
+    { display: "ガララアジャラ", accept: ["ガララアジャラ", "がららあじゃら"], hint: "絞蛇竜" },
+    { display: "ガララアジャラ亜種", accept: ["ガララアジャラ亜種", "がららあじゃらあしゅ"], hint: "水蛇竜" },
+    { display: "ヌ・エグドラ", accept: ["ヌエグドラ", "ぬえぐどら"], hint: "獄焔蛸" },
+    { display: "シーウー", accept: ["シーウー", "しーうー"], hint: "暗器蛸" },
+    { display: "ゾ・シア", accept: ["ゾシア", "ぞしあ"], hint: "白熾龍" },
+    { display: "ゴア・マガラ", accept: ["ゴアマガラ", "ごあまがら"], hint: "黒蝕竜" },
+    { display: "キリン", accept: ["キリン", "きりん"], hint: "幻獣" },
+    { display: "キリン亜種", accept: ["キリン亜種", "きりんあしゅ"], hint: "虚幻獣" },
+    { display: "ラオシャンロン", accept: ["ラオシャンロン", "らおしゃんろん"], hint: "老山龍" },
+    { display: "ラオシャンロン亜種", accept: ["ラオシャンロン亜種", "らおしゃんろんあしゅ"], hint: "岩山龍" },
+    { display: "クシャルダオラ", accept: ["クシャルダオラ", "くしゃるだおら"], hint: "鋼龍" },
+    { display: "オオナズチ", accept: ["オオナズチ", "おおなずち"], hint: "霞龍" },
+    { display: "ナナ・テスカトリ", accept: ["ナナテスカトリ", "ななてすかとり"], hint: "炎妃龍" },
+    { display: "テオ・テスカトル", accept: ["テオテスカトル", "ておてすかとる"], hint: "炎王龍" },
+    { display: "ヤマツカミ", accept: ["ヤマツカミ", "やまつかみ"], hint: "浮岳龍" },
+    { display: "ナバルデウス", accept: ["ナバルデウス", "なばるでうす"], hint: "大海龍" },
+    { display: "ナバルデウス亜種", accept: ["ナバルデウス亜種", "なばるでうすあしゅ"], hint: "皇海龍" },
+    { display: "ジエン・モーラン", accept: ["ジエンモーラン", "じえんもーらん"], hint: "峯山龍" },
+    { display: "ジエン・モーラン亜種", accept: ["ジエンモーラン亜種", "じえんもーらんあしゅ"], hint: "霊山龍" },
+    { display: "アマツマガツチ", accept: ["アマツマガツチ", "あまつまがつち"], hint: "嵐龍" },
+    { display: "シャガルマガラ", accept: ["シャガルマガラ", "しゃがるまがら"], hint: "天廻龍" },
+    { display: "ダレン・モーラン", accept: ["ダレンモーラン", "だれんもーらん"], hint: "豪山龍" },
+    { display: "ダラ・アマデュラ", accept: ["ダラアマデュラ", "だらあまでゅら"], hint: "蛇王龍" },
+    { display: "ダラ・アマデュラ亜種", accept: ["ダラアマデュラ亜種", "だらあまでゅらあしゅ"], hint: "蛇帝龍" },
+    { display: "ゴグマジオス", accept: ["ゴグマジオス", "ごぐまじおす"], hint: "巨戟龍" },
+    { display: "オストガロア", accept: ["オストガロア", "おすとがろあ"], hint: "骸龍" },
+    { display: "バルファルク", accept: ["バルファルク", "ばるふぁるく"], hint: "天彗龍" },
+    { display: "ネルギガンテ", accept: ["ネルギガンテ", "ねるぎがんて"], hint: "滅尽龍" },
+    { display: "ゾラ・マグダラオス", accept: ["ゾラマグダラオス", "ぞらまぐだらおす"], hint: "熔山龍" },
+    { display: "ヴァルハザク", accept: ["ヴァルハザク", "ヴぁるはざく", "ゔぁるはざく"], hint: "屍套龍" },
+    { display: "ゼノ・ジーヴァ", accept: ["ゼノジーヴァ", "ぜのじーヴぁ", "ぜのじーゔぁ"], hint: "冥灯龍" },
+    { display: "マム・タロト", accept: ["マムタロト", "まむたろと"], hint: "爛輝龍" },
+    { display: "イヴェルカーナ", accept: ["イヴェルカーナ", "いヴぇるかーな", "いゔぇるかーな"], hint: "冰龍" },
+    { display: "ネロミェール", accept: ["ネロミェール", "ねろみぇーる"], hint: "溟龍" },
+    { display: "アン・イシュワルダ", accept: ["アンイシュワルダ", "あんいしゅわるだ"], hint: "地啼龍" },
+    { display: "ムフェト・ジーヴァ", accept: ["ムフェトジーヴァ", "むふぇとじーヴぁ", "むふぇとじーゔぁ"], hint: "赤龍" },
+    { display: "イブシマキヒコ", accept: ["イブシマキヒコ", "いぶしまきひこ"], hint: "風神龍" },
+    { display: "ナルハタタヒメ", accept: ["ナルハタタヒメ", "なるはたたひめ"], hint: "雷神龍" },
+    { display: "メル・ゼナ", accept: ["メルゼナ", "めるぜな"], hint: "爵銀龍" },
+    { display: "ガイアデルム", accept: ["ガイアデルム", "がいあでるむ"], hint: "冥淵龍" },
+    { display: "アルバトリオン", accept: ["アルバトリオン", "あるばとりおん"], hint: "煌黒龍" },
+    { display: "グラン・ミラオス", accept: ["グランミラオス", "ぐらんみらおす"], hint: "煉黒龍" },
+    { display: "ミラボレアス", accept: ["ミラボレアス", "みらぼれあす"], hint: "祖龍" }
+    ];
+
+    let foundCount = 0;
+    let isGameOver = false;
+    let answeredIndices = new Set();
+
+    const input = document.getElementById('answerInput');
+    const remainingText = document.getElementById('remaining');
+    const totalText = document.getElementById('total');
+    const listContainer = document.getElementById('answerList');
+    const messageEl = document.getElementById('message');
+    const giveupBtn = document.getElementById('giveupBtn');
+    const retryBtn = document.getElementById('retryBtn');
+    const limitFill = document.getElementById('limitFill');
+    const percentDisplay = document.getElementById('progressPercent');
+
+    function updateLimitGauge() {
+        const percent = Math.floor((foundCount / quizData.length) * 100);
+        if(limitFill) limitFill.style.width = percent + "%";
+        if(percentDisplay) percentDisplay.textContent = percent + "%";
+    }
+
+    function init() {
+        foundCount = 0;
+        isGameOver = false;
+        answeredIndices.clear();
+        listContainer.innerHTML = '';
+        input.disabled = false;
+        input.value = '';
+        input.placeholder = config.placeholderNormal;
+        giveupBtn.style.display = 'inline-block';
+        retryBtn.style.display = 'none';
+        remainingText.textContent = quizData.length;
+        totalText.textContent = quizData.length;
+        messageEl.textContent = '';
+
+        quizData.forEach((item, index) => {
+            const div = document.createElement('div');
+            div.className = 'item';
+            div.id = 'target-' + index;
+            div.innerHTML = `<div class="hint-text">${item.hint}</div><div class="answer-text">？？？？</div>`;
+            listContainer.appendChild(div);
+        });
+
+        loadProgress();
+        updateLimitGauge();
+    }
+
+    function loadProgress() {
+        const savedData = localStorage.getItem(config.storageKey);
+        if (savedData) {
+            const savedIndices = JSON.parse(savedData);
+            savedIndices.forEach(index => {
+                if (index < quizData.length) {
+                    answeredIndices.add(index);
+                    updateItemDisplay(index, true);
+                    foundCount++;
+                }
+            });
+            remainingText.textContent = quizData.length - foundCount;
+            if (foundCount > 0) showMessage("前回の続きから開始します", "#5d4037");
+        }
+        updateLimitGauge();
+    }
+
+    function saveProgress() {
+        localStorage.setItem(config.storageKey, JSON.stringify(Array.from(answeredIndices)));
+    }
+
+    input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !isGameOver) {
+            const val = input.value.trim();
+            if (val === "") return;
+            let targetIndex = quizData.findIndex(item => item.accept.includes(val));
+
+            if (targetIndex !== -1) {
+                if (answeredIndices.has(targetIndex)) {
+                    showMessage("討伐済み", "#795548");
+                    document.getElementById('target-' + targetIndex).scrollIntoView({ behavior: 'smooth', block: 'center' });
+                } else {
+                    answeredIndices.add(targetIndex);
+                    updateItemDisplay(targetIndex, true);
+                    foundCount++;
+                    remainingText.textContent = quizData.length - foundCount;
+                    showMessage("正解！", "#2e7d32");
+                    saveProgress();
+                    updateLimitGauge();
+                    if (foundCount === quizData.length) finishGame("クエストクリア！", "#bf360c");
+                }
+            } else {
+                showMessage("不正解！", "#d32f2f");
+            }
+            input.value = '';
+        }
+    });
+
+    function updateItemDisplay(index, isCorrect) {
+        const targetEl = document.getElementById('target-' + index);
+        const data = quizData[index];
+        targetEl.innerHTML = `
+            <div class="hint-text">${data.hint}</div>
+            <div class="answer-text">${data.display}</div>
+        `;
+        if (isCorrect) {
+            targetEl.classList.add('found');
+            targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else {
+            targetEl.classList.add('missed');
+        }
+    }
+
+    giveupBtn.addEventListener('click', () => {
+        quizData.forEach((item, index) => { if (!answeredIndices.has(index)) updateItemDisplay(index, false); });
+        finishGame("クエスト失敗…", "#d32f2f");
+    });
+
+    retryBtn.addEventListener('click', () => {
+        if(confirm("全ての記録を破棄して再受注しますか？")) { localStorage.removeItem(config.storageKey); init(); }
+    });
+
+    function finishGame(msg, color) {
+        isGameOver = true;
+        input.disabled = true;
+        input.placeholder = config.placeholderGameOver;
+        giveupBtn.style.display = 'none';
+        retryBtn.style.display = 'inline-block';
+        showMessage(msg, color);
+    }
+
+    function showMessage(text, color) {
+        messageEl.textContent = text;
+        messageEl.style.color = color;
+        if (!isGameOver) setTimeout(() => { if (messageEl.textContent === text) messageEl.textContent = ""; }, 1500);
+    }
+
+    init();
+</script>
+
+</body>
+</html>

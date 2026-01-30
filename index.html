@@ -38,7 +38,7 @@
         }
 
         .container {
-            max-width: 1100px;
+            max-width: 1500px;
             margin: 0 auto;
             padding: 0 1.5rem 5rem;
         }
@@ -72,17 +72,26 @@
             flex-grow: 1;
         }
 
-        .category-tag {
-            display: inline-block;
-            background: #eff6ff;
-            color: var(--primary-color);
-            font-size: 0.75rem;
-            font-weight: 600;
-            padding: 0.25rem 0.75rem;
-            border-radius: 9999px;
-            margin-bottom: 1rem;
-            text-transform: uppercase;
-        }
+/* --- CSS修正部分 --- */
+.category-tag {
+    display: inline-block;
+    /* デフォルト値として青系を設定。--category-colorがない場合に適用される */
+    background: color-mix(in srgb, var(--category-color, #2563eb) 10%, white);
+    color: var(--category-color, #2563eb);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+}
+
+.quiz-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+    /* ホバー時の枠線もカテゴリの色に合わせる */
+    border-color: var(--category-color, var(--primary-color));
+}
 
         .quiz-card h2 {
             margin: 0 0 0.75rem 0;
@@ -151,12 +160,44 @@
 
 <div class="container">
     <div class="quiz-grid">
-        
-        <a href="ff7limit.html" class="quiz-card" data-quiz-key="全部言えるかな？ゲーム FF7リミット技" data-total="70">
+    
+        <a href="ff5skill.html" class="quiz-card" data-quiz-key="FF5 魔法・技いえるかな" data-total="144">
             <div class="card-content">
                 <span class="category-tag">Game</span>
-                <h2>FF7 技名チャレンジ</h2>
-                <p>クラウドたちのリミット技を全て答えられますか？全65種類の技を網羅。</p>
+                <h2>FF5 魔法・技いえるかな</h2>
+            </div>
+            <div class="progress-container">
+                <div class="progress-info">
+                    <span class="status-text">Progress: <span class="count-now">0</span>/144</span>
+                    <span class="percent-text">0%</span>
+                </div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill"></div>
+                </div>
+            </div>
+        </a>
+    
+        <a href="ff5item.html" class="quiz-card" data-quiz-key="FF5 アイテムいえるかな" data-total="216">
+            <div class="card-content">
+                <span class="category-tag">Game</span>
+                <h2>FF5 アイテムいえるかな</h2>
+                <p>イベント系アイテムは含まない</p>
+            </div>
+            <div class="progress-container">
+                <div class="progress-info">
+                    <span class="status-text">Progress: <span class="count-now">0</span>/216</span>
+                    <span class="percent-text">0%</span>
+                </div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill"></div>
+                </div>
+            </div>
+        </a>
+        
+        <a href="ff7limit.html" class="quiz-card" data-quiz-key="FF7 リミット技の名前いえるかな" data-total="70">
+            <div class="card-content">
+                <span class="category-tag">Game</span>
+                <h2>FF7 リミット技の名前いえるかな</h2>
             </div>
             <div class="progress-container">
                 <div class="progress-info">
@@ -168,16 +209,16 @@
                 </div>
             </div>
         </a>
-
-        <a href="#" class="quiz-card" data-quiz-key="全部言えるかな？日本の歴代首相" data-total="101">
+        
+        <a href="ff7item.html" class="quiz-card" data-quiz-key="FF7 アイテムの名前いえるかな" data-total="285">
             <div class="card-content">
-                <span class="category-tag" style="background:#fef2f2; color:#dc2626;">History</span>
-                <h2>日本の歴代首相</h2>
-                <p>伊藤博文から現代まで。日本の歴史を創ってきた内閣総理大臣をすべて答えよう。</p>
+                <span class="category-tag">Game</span>
+                <h2>FF7 アイテムの名前いえるかな</h2>
+                <p>イベント系アイテムは含まない</p>
             </div>
             <div class="progress-container">
                 <div class="progress-info">
-                    <span class="status-text">Progress: <span class="count-now">0</span>/101</span>
+                    <span class="status-text">Progress: <span class="count-now">0</span>/285</span>
                     <span class="percent-text">0%</span>
                 </div>
                 <div class="progress-bar-bg">
@@ -185,6 +226,110 @@
                 </div>
             </div>
         </a>
+        
+        <a href="ff7materia.html" class="quiz-card" data-quiz-key="FF7 マテリアの名前いえるかな" data-total="83">
+            <div class="card-content">
+                <span class="category-tag">Game</span>
+                <h2>FF7 マテリアの名前いえるかな</h2>
+            </div>
+            <div class="progress-container">
+                <div class="progress-info">
+                    <span class="status-text">Progress: <span class="count-now">0</span>/83</span>
+                    <span class="percent-text">0%</span>
+                </div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill"></div>
+                </div>
+            </div>
+        </a>        
+        <a href="ff8limit.html" class="quiz-card" data-quiz-key="FF8 特殊技の名前いえるかな" data-total="37">
+            <div class="card-content">
+                <span class="category-tag">Game</span>
+                <h2>FF8 特殊技の名前いえるかな</h2>
+            </div>
+            <div class="progress-container">
+                <div class="progress-info">
+                    <span class="status-text">Progress: <span class="count-now">0</span>/37</span>
+                    <span class="percent-text">0%</span>
+                </div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill"></div>
+                </div>
+            </div>
+        </a>
+        
+        <a href="ff9limit.html" class="quiz-card" data-quiz-key="FF9 固有コマンドの名前いえるかな" data-total="58">
+            <div class="card-content">
+                <span class="category-tag">Game</span>
+                <h2>FF9 固有コマンドの名前いえるかな</h2>
+            </div>
+            <div class="progress-container">
+                <div class="progress-info">
+                    <span class="status-text">Progress: <span class="count-now">0</span>/58</span>
+                    <span class="percent-text">0%</span>
+                </div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill"></div>
+                </div>
+            </div>
+        </a>
+
+        <a href="ff10limit.html" class="quiz-card" data-quiz-key="FF10 技の名前いえるかな" data-total="67">
+            <div class="card-content">
+                <span class="category-tag">Game</span>
+                <h2>FF10 技の名前いえるかな</h2>
+            </div>
+            <div class="progress-container">
+                <div class="progress-info">
+                    <span class="status-text">Progress: <span class="count-now">0</span>/67</span>
+                    <span class="percent-text">0%</span>
+                </div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill"></div>
+                </div>
+            </div>
+        </a>
+        
+        <a href="monsterhunter.html" class="quiz-card" data-quiz-key="モンスターハンター 別名からモンスターいえるかな" data-total="200">
+            <div class="card-content">
+                <span class="category-tag">Game</span>
+                <h2>モンスターハンター 別名からモンスターいえるかな</h2>
+                <p>一部の草食獣や小型を除く</p>
+            </div>
+            <div class="progress-container">
+                <div class="progress-info">
+                    <span class="status-text">Progress: <span class="count-now">0</span>/200</span>
+                    <span class="percent-text">0%</span>
+                </div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill"></div>
+                </div>
+            </div>
+        </a>
+        
+        <a href="precurewaza.html" class="quiz-card" data-quiz-key="プリキュアの必殺技言えるかな" data-total="404" style="--category-color: #ef4444;">
+            <div class="card-content">
+                <span class="category-tag">Anime</span>
+                <h2>プリキュアの必殺技言えるかな</h2>
+                <p>プリキュア以外の技は除く</p>
+            </div>
+            <div class="progress-container">
+                <div class="progress-info">
+                    <span class="status-text">Progress: <span class="count-now">0</span>/404</span>
+                    <span class="percent-text">0%</span>
+                </div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill"></div>
+                </div>
+            </div>
+        </a>
+
+<a href="#" class="quiz-card" data-quiz-key="別のクイズ" data-total="100" style="--category-color: #10b981;">
+    <div class="card-content">
+        <span class="category-tag">Other</span>
+        <h2>To Be Continued…</h2>
+    </div>
+    </a>
 
     </div>
 </div>

@@ -2,8 +2,64 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>全部言えるかな？ゲーム FF7リミット技</title>
+    <title>FF7 リミット技の名前いえるかな</title>
     <style>
+/* リミットゲージ全体のコンテナ */
+.limit-gauge-outer {
+    max-width: 600px;
+    margin: 15px auto;
+    padding: 3px;
+    background: #444; /* 枠線 */
+    border: 1px solid #888;
+    border-radius: 4px;
+    position: relative;
+}
+
+/* ゲージの背景（黒い部分） */
+.limit-gauge-bg {
+    height: 20px;
+    background: #000;
+    border-radius: 2px;
+    overflow: hidden;
+    position: relative;
+}
+
+/* 実際のゲージ本体 */
+#limitFill {
+    height: 100%;
+    width: 0%; /* JSで変動 */
+    background: linear-gradient(to right, #222, #0055aa 30%, #00aaff 60%, #ffffff 100%);
+    box-shadow: 0 0 10px #00aaff;
+    transition: width 0.4s ease-out;
+}
+
+/* ゲージ内のテキスト */
+.limit-label {
+    position: absolute;
+    right: 10px; /* 左(left)から右(right)に変更するとゲージの伸びを邪魔しません */
+    top: 50%;
+    transform: translateY(-50%);
+    font-style: italic;
+    font-size: 12px;
+    font-weight: 900; /* より太く */
+    color: #fff;
+    text-shadow: 1px 1px 2px #000;
+    z-index: 2;
+    pointer-events: none;
+    letter-spacing: 1px;
+}
+
+/* 全問正解（MAX）時の虹色アニメーション */
+@keyframes limit-flash {
+    0% { filter: brightness(1); }
+    50% { filter: brightness(1.8); box-shadow: 0 0 20px #fff; }
+    100% { filter: brightness(1); }
+}
+
+.limit-max #limitFill {
+    background: linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff);
+    animation: limit-flash 0.2s infinite;
+}
         /* スタイル部分は変更なしのため維持 */
         body { font-family: 'Helvetica Neue', Arial, sans-serif; text-align: center; padding: 20px; background: linear-gradient(135deg, #000080 0%, #000040 50%, #000000 100%); background-attachment: fixed; color: white; margin: 0; }
         .container { max-width: 1500px; margin: 20px auto; background: rgba(0, 0, 128, 0.7); padding: 20px; border-radius: 10px; border: 3px double #ffffff; box-shadow: 0 0 15px rgba(0,0,0,0.5); }
@@ -27,9 +83,15 @@
 <body>
 
 <div class="container">
-    <div class="sticky-header">
-        <h2>FF7 リミット技の名前いえるかな</h2>
-        <div class="status">あと <span id="remaining">--</span> / <span id="total">--</span></div>
+<div class="sticky-header">
+    <h2>FF7 リミット技の名前いえるかな</h2>
+<div class="limit-gauge-outer" id="gaugeWrapper">
+    <div class="limit-label" id="progressPercent">0%</div> 
+    <div class="limit-gauge-bg">
+        <div id="limitFill"></div>
+    </div>
+</div>
+    <div class="status">あと <span id="remaining">--</span> / <span id="total">--</span></div>
         <div id="message"></div>
         <input type="text" id="answerInput" placeholder="" autofocus autocomplete="off">
         <button class="btn giveup-btn" id="giveupBtn">ギブアップ</button>
@@ -41,12 +103,11 @@
 <script>
     const config = {
         placeholderNormal: "技名を入力してEnter",
-        placeholderGameOver: "お疲れ様でした！",
-        storageKey: "quiz_save_" + document.title // ページタイトルをキーにする
+        placeholderGameOver: "GAME OVER",
+        storageKey: "quiz_save_" + document.title
     };
 
     const quizData = [
-        /* ... 技名データ (元のコードと同じなので中身は省略) ... */
         { display: "ブレイバー", accept: ["ブレイバー", "ぶれいばー"], hint: "クラウド" },
         { display: "凶斬り", accept: ["凶斬り", "きょうぎり"], hint: "クラウド" },
         { display: "破晄撃", accept: ["破晄撃", "はこうげき"], hint: "クラウド" },
@@ -130,7 +191,28 @@
     const messageEl = document.getElementById('message');
     const giveupBtn = document.getElementById('giveupBtn');
     const retryBtn = document.getElementById('retryBtn');
+    
+    // 進捗ゲージ用の変数
+    const limitFill = document.getElementById('limitFill');
+    const gaugeWrapper = document.getElementById('gaugeWrapper');
 
+function updateLimitGauge() {
+    const percent = Math.floor((foundCount / quizData.length) * 100); // 整数で計算
+    if(limitFill) limitFill.style.width = percent + "%";
+
+    // ★ パーセント表示のテキストを更新
+    const percentDisplay = document.getElementById('progressPercent');
+    if (percentDisplay) {
+        // 全問正解なら「LIMIT BREAK !!」、それ以外は「◯%」を表示
+        percentDisplay.textContent = (foundCount === quizData.length) ? "LIMIT BREAK !!" : percent + "%";
+    }
+
+    if (foundCount === quizData.length && quizData.length > 0) {
+        gaugeWrapper.classList.add('limit-max');
+    } else {
+        gaugeWrapper.classList.remove('limit-max');
+    }
+}
     function init() {
         foundCount = 0;
         isGameOver = false;
@@ -145,7 +227,6 @@
         totalText.textContent = quizData.length;
         messageEl.textContent = '';
 
-        // リスト生成
         quizData.forEach((item, index) => {
             const div = document.createElement('div');
             div.className = 'item';
@@ -154,11 +235,10 @@
             listContainer.appendChild(div);
         });
 
-        // 保存されたデータの読み込み
         loadProgress();
+        updateLimitGauge();
     }
 
-    // セーブデータを読み込む
     function loadProgress() {
         const savedData = localStorage.getItem(config.storageKey);
         if (savedData) {
@@ -178,20 +258,19 @@
                 finishGame("全問正解済みです！", "#ff9800");
             }
         }
+        updateLimitGauge();
     }
 
-    // セーブデータを保存する
     function saveProgress() {
         const dataArray = Array.from(answeredIndices);
         localStorage.setItem(config.storageKey, JSON.stringify(dataArray));
     }
 
-    // セーブデータを消去する
     function clearProgress() {
         localStorage.removeItem(config.storageKey);
     }
 
-    input.addEventListener('keypress', (e) => {
+input.addEventListener('keypress', (e) => {
         if (e.key === 'Enter' && !isGameOver) {
             const val = input.value.trim();
             if (val === "") return;
@@ -199,36 +278,44 @@
 
             if (targetIndex !== -1) {
                 if (answeredIndices.has(targetIndex)) {
-                    showMessage("それはもう答えたよ！", "#ffcc00");
+                    showMessage("回答済みです", "#ffcc00");
+                    // すでに正解済みでも、その場所を教えてあげるためにスクロールさせる
+                    document.getElementById('target-' + targetIndex).scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'center'
+                    });
                 } else {
                     answeredIndices.add(targetIndex);
-                    updateItemDisplay(targetIndex, true);
+                    updateItemDisplay(targetIndex, true); // ここでスクロールが実行されます
                     foundCount++;
                     remainingText.textContent = quizData.length - foundCount;
                     showMessage("正解！", "#4caf50");
-                    
-                    saveProgress(); // 正解するたびに保存
-
-                    if (foundCount === quizData.length) {
-                        finishGame("全問正解！おめでとう！", "#ff9800");
-                    }
+                    saveProgress();
+                    updateLimitGauge();
+                    if (foundCount === quizData.length) finishGame("全問正解！おめでとう！", "#ff9800");
                 }
             } else {
-                showMessage("不正解！", "#e91e63");
+                showMessage("ミス！", "#e91e63");
             }
             input.value = '';
         }
     });
 
-    function updateItemDisplay(index, isCorrect) {
+function updateItemDisplay(index, isCorrect) {
         const targetEl = document.getElementById('target-' + index);
         const data = quizData[index];
         targetEl.innerHTML = `
             <div class="hint-text">${data.hint}</div>
             <div class="answer-text">${data.display}</div>
         `;
+        
         if (isCorrect) {
             targetEl.classList.add('found');
+            // --- 追加: スクロール処理 ---
+            targetEl.scrollIntoView({
+                behavior: 'smooth', // 滑らかに動かす
+                block: 'center'      // 画面の中央にくるように調整
+            });
         } else {
             targetEl.classList.add('missed');
         }
@@ -262,6 +349,7 @@
         giveupBtn.style.display = 'none';
         retryBtn.style.display = 'inline-block';
         showMessage(msg, color);
+        updateLimitGauge();
     }
 
     function showMessage(text, color) {

@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>FF8 特殊技の名前いえるかな</title>
+    <style>
+        /* FF8 メニュー風背景カラー */
+        body { 
+            font-family: 'Helvetica Neue', Arial, sans-serif; 
+            text-align: center; 
+            padding: 20px; 
+            background: radial-gradient(circle at center, #4a5568 0%, #2d3748 100%); 
+            background-attachment: fixed; 
+            color: #e2e8f0; 
+            margin: 0; 
+        }
+
+        /* FF8 ウィンドウ風コンテナ */
+        .container { 
+            max-width: 1500px; 
+            margin: 20px auto; 
+            background: rgba(45, 55, 72, 0.9); 
+            padding: 30px; 
+            border-radius: 4px; 
+            border: 1px solid rgba(255, 255, 255, 0.6); 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5), inset 0 0 10px rgba(255,255,255,0.1); 
+        }
+
+        /* ヘッダー部分 */
+        .sticky-header { 
+            position: sticky; 
+            top: 0; 
+            background: rgba(26, 32, 44, 0.95); 
+            padding: 20px 0; 
+            z-index: 100; 
+            border-bottom: 1px solid rgba(255,255,255,0.4); 
+            margin-bottom: 20px; 
+        }
+
+        h2 { 
+            margin: 0; 
+            color: #ffffff; 
+            letter-spacing: 2px;
+            font-weight: 300;
+            text-shadow: 1px 1px 3px #000; 
+        }
+
+        /* FF8風リミットゲージ（少しフラットに） */
+        .limit-gauge-outer {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 2px;
+            background: #cbd5e0; 
+            border: 1px solid #2d3748;
+            border-radius: 2px;
+            position: relative;
+        }
+
+        .limit-gauge-bg {
+            height: 18px;
+            background: #1a202c;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #limitFill {
+            height: 100%;
+            width: 0%;
+            /* FF8のゲージ色に近いイエロー〜オレンジ系グラデーション */
+            background: linear-gradient(to right, #718096, #edf2f7 50%, #f6ad55 90%, #ed8936 100%);
+            box-shadow: 0 0 8px rgba(237, 137, 54, 0.6);
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .limit-label {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 11px;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 1px 1px 2px #000;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        /* MAX時の演出（FF8のピンチ時のような点滅） */
+        @keyframes limit-flash-ff8 {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; filter: brightness(1.5); }
+            100% { opacity: 1; }
+        }
+
+        .limit-max #limitFill {
+            background: linear-gradient(to right, #fc8181, #f6ad55, #63b3ed, #b794f4);
+            animation: limit-flash-ff8 0.3s infinite;
+        }
+
+        .status { margin: 15px 0; font-size: 1.1em; color: #cbd5e0; letter-spacing: 1px; }
+        #message { height: 24px; font-weight: bold; margin-bottom: 10px; color: #f6ad55; }
+
+        input { 
+            font-size: 18px; 
+            padding: 10px 15px; 
+            width: 35%; 
+            border: 1px solid #718096; 
+            border-radius: 2px; 
+            background: rgba(0,0,0,0.3); 
+            color: #fff; 
+            transition: border 0.3s;
+        }
+        input:focus { border-color: #fff; background: rgba(0,0,0,0.5); }
+
+        .btn { 
+            padding: 10px 25px; 
+            font-size: 14px; 
+            cursor: pointer; 
+            border-radius: 2px; 
+            border: 1px solid #718096; 
+            background: #4a5568; 
+            color: white; 
+            transition: 0.2s; 
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .btn:hover { background: #edf2f7; color: #2d3748; border-color: #fff; }
+
+        /* リスト部分（FF8のアイテム画面風） */
+        .list { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); 
+            gap: 10px; 
+            margin-top: 30px; 
+        }
+
+        .item { 
+            padding: 12px; 
+            background: rgba(255, 255, 255, 0.03); 
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            color: #718096; 
+            font-size: 14px; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: flex-start; /* 左寄せにしてメニュー感を出す */
+            padding-left: 20px;
+            transition: 0.3s;
+        }
+
+        .item.found { 
+            background: rgba(255, 255, 255, 0.1); 
+            color: #fff; 
+            border-color: #cbd5e0; 
+            box-shadow: inset 2px 0 0 #fff; /* 左端に白いライン */
+        }
+
+        .hint-text { font-size: 0.75em; color: #a0aec0; margin-bottom: 5px; text-transform: uppercase; }
+.answer-text { 
+            font-size: 1.1em; 
+            letter-spacing: 1px; 
+            font-weight: bold; /* 太字に変更 */
+        }
+        .item.missed { background: rgba(229, 62, 62, 0.1); border-color: #fc8181; }
+        .item.missed .answer-text { color: #fc8181; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="sticky-header">
+        <h2>FF8 特殊技の名前いえるかな</h2>
+        <div class="limit-gauge-outer" id="gaugeWrapper">
+            <div class="limit-label" id="progressPercent">0%</div> 
+            <div class="limit-gauge-bg">
+                <div id="limitFill"></div>
+            </div>
+        </div>
+        <div class="status">あと: <span id="remaining">--</span> / <span id="total">--</span></div>
+        <div id="message"></div>
+        <input type="text" id="answerInput" placeholder="Input Ability Name..." autofocus autocomplete="off">
+        <button class="btn giveup-btn" id="giveupBtn">ギブアップ</button>
+        <button class="btn retry-btn" id="retryBtn" style="display:none;">もう一度遊ぶ</button>
+    </div>
+    <div class="list" id="answerList"></div>
+</div>
+
+<script>
+    // --- JavaScript部分はロジックを維持しつつ、デザインに合わせてメッセージのみ英語・カタカナを調整 ---
+    const config = {
+        placeholderNormal: "技名を入力してEnter",
+        placeholderGameOver: "GAME OVER",
+        storageKey: "quiz_save_" + document.title
+    };
+
+const quizData = [
+        // スコール
+        { display: "連続斬り", accept: ["連続斬り", "れんぞくぎり"], hint: "スコール" },
+        { display: "ラフディバイド", accept: ["ラフディバイド", "らふでぃばいど"], hint: "スコール" },
+        { display: "フェイテッドサークル", accept: ["フェイテッドサークル", "ふぇいてっどさーくる"], hint: "スコール" },
+        { display: "ブラスティングゾーン", accept: ["ブラスティングゾーン", "ぶらすてぃんぐぞーん"], hint: "スコール" },
+        { display: "エンドオブハート", accept: ["エンドオブハート", "えんどおぶはーと"], hint: "スコール" },
+
+        // リノア
+        { display: "アンジェロ", accept: ["アンジェロ", "あんじぇろ"], hint: "リノア" },
+        { display: "アンジェロラッシュ", accept: ["アンジェロラッシュ", "あんじぇろらっしゅ"], hint: "リノア" },
+        { display: "アンジェロリカバー", accept: ["アンジェロリカバー", "あんじぇろりかばー"], hint: "リノア" },
+        { display: "アンジェロリバース", accept: ["アンジェロリバース", "あんじぇろりばーす"], hint: "リノア" },
+        { display: "アンジェロサーチ", accept: ["アンジェロサーチ", "あんじぇろさーち"], hint: "リノア" },
+        { display: "アンジェロキャノン", accept: ["アンジェロキャノン", "あんじぇろきゃのん"], hint: "リノア" },
+        { display: "アンジェロストライク", accept: ["アンジェロストライク", "あんじぇろすとらいく"], hint: "リノア" },
+        { display: "インビジブルムーン", accept: ["インビジブルムーン", "いんびじぶるむーん"], hint: "リノア" },
+        { display: "ウィッシュスター", accept: ["ウィッシュスター", "うぃっしゅすたー"], hint: "リノア" },
+
+        // ゼル
+        { display: "ラッシュパンチ", accept: ["ラッシュパンチ", "らっしゅぱんち"], hint: "ゼル" },
+        { display: "ヘッドショック", accept: ["ヘッドショック", "へっどしょっく"], hint: "ゼル" },
+        { display: "かかと落とし", accept: ["かかと落とし", "かかとおとし"], hint: "ゼル" },
+        { display: "マッハキック", accept: ["マッハキック", "まっはきっく"], hint: "ゼル" },
+        { display: "ドルフィンブロウ", accept: ["ドルフィンブロウ", "どるふぃんぶろう"], hint: "ゼル" },
+        { display: "メテオストライク", accept: ["メテオストライク", "めておすとらいく"], hint: "ゼル" },
+        { display: "バーニングレイヴ", accept: ["バーニングレイヴ", "ばーにんぐれいゔ", "ばーにんぐれいヴ"], hint: "ゼル" },
+        { display: "メテオバレット", accept: ["メテオバレット", "めておばれっと"], hint: "ゼル" },
+        { display: "ディファレントビート", accept: ["ディファレントビート", "でぃふぁれんとびーと"], hint: "ゼル" },
+        { display: "俺式ファイナルヘヴン", accept: ["俺式ファイナルヘヴン", "おれしきふぁいなるへゔん", "おれしきふぁいなるへヴん"], hint: "ゼル" },
+
+        // アーヴァイン
+        { display: "ノーマルショット", accept: ["ノーマルショット", "のーまるしょっと"], hint: "アーヴァイン" },
+        { display: "グレープショット", accept: ["グレープショット", "ぐれーぷしょっと"], hint: "アーヴァイン" },
+        { display: "ダークショット", accept: ["ダークショット", "だーくしょっと"], hint: "アーヴァイン" },
+        { display: "フレイムショット", accept: ["フレイムショット", "ふれいむしょっと"], hint: "アーヴァイン" },
+        { display: "キャニスターショット", accept: ["キャニスターショット", "きゃにすたーしょっと"], hint: "アーヴァイン" },
+        { display: "クイックショット", accept: ["クイックショット", "くいっくしょっと"], hint: "アーヴァイン" },
+        { display: "アーマーショット", accept: ["アーマーショット", "あーまーしょっと"], hint: "アーヴァイン" },
+        { display: "ハイパーショット", accept: ["ハイパーショット", "はいぱーしょっと"], hint: "アーヴァイン" },
+
+        // ラグナ・キロス・ウォード
+        { display: "デスペラード", accept: ["デスペラード", "ですぺらーど"], hint: "ラグナ" },
+        { display: "ブラッドペイン", accept: ["ブラッドペイン", "ぶらっどぺいん"], hint: "キロス" },
+        { display: "マッシヴアンカー", accept: ["マッシヴアンカー", "まっしゔあんかー", "まっしヴあんかー"], hint: "ウォード" },
+
+        // サイファー・イデア
+        { display: "雑魚散らし", accept: ["雑魚散らし", "ざこちらし"], hint: "サイファー" },
+        { display: "冷徹なる一撃", accept: ["冷徹なる一撃", "れいてつなるいちげき"], hint: "イデア" },
+    ];
+    let foundCount = 0;
+    let isGameOver = false;
+    let answeredIndices = new Set();
+
+    const input = document.getElementById('answerInput');
+    const remainingText = document.getElementById('remaining');
+    const totalText = document.getElementById('total');
+    const listContainer = document.getElementById('answerList');
+    const messageEl = document.getElementById('message');
+    const giveupBtn = document.getElementById('giveupBtn');
+    const retryBtn = document.getElementById('retryBtn');
+    const limitFill = document.getElementById('limitFill');
+    const gaugeWrapper = document.getElementById('gaugeWrapper');
+    const percentDisplay = document.getElementById('progressPercent');
+
+    function updateLimitGauge() {
+        const percent = Math.floor((foundCount / quizData.length) * 100);
+        if(limitFill) limitFill.style.width = percent + "%";
+        if(percentDisplay) {
+            percentDisplay.textContent = (foundCount === quizData.length) ? "LIMIT BREAK !!" : percent + "%";
+        }
+        if (foundCount === quizData.length && quizData.length > 0) {
+            gaugeWrapper.classList.add('limit-max');
+        } else {
+            gaugeWrapper.classList.remove('limit-max');
+        }
+    }
+
+    function init() {
+        foundCount = 0;
+        isGameOver = false;
+        answeredIndices.clear();
+        listContainer.innerHTML = '';
+        input.disabled = false;
+        input.value = '';
+        input.placeholder = config.placeholderNormal;
+        giveupBtn.style.display = 'inline-block';
+        retryBtn.style.display = 'none';
+        remainingText.textContent = quizData.length;
+        totalText.textContent = quizData.length;
+        messageEl.textContent = '';
+
+        quizData.forEach((item, index) => {
+            const div = document.createElement('div');
+            div.className = 'item';
+            div.id = 'target-' + index;
+            div.innerHTML = `<div class="hint-text">${item.hint}</div><div class="answer-text">????????</div>`;
+            listContainer.appendChild(div);
+        });
+
+        loadProgress();
+        updateLimitGauge();
+    }
+
+    function loadProgress() {
+        const savedData = localStorage.getItem(config.storageKey);
+        if (savedData) {
+            const savedIndices = JSON.parse(savedData);
+            savedIndices.forEach(index => {
+                if (index < quizData.length) {
+                    answeredIndices.add(index);
+                    updateItemDisplay(index, true);
+                    foundCount++;
+                }
+            });
+            remainingText.textContent = quizData.length - foundCount;
+            if (foundCount > 0) showMessage("続きから開始します", "#63b3ed");
+            if (foundCount === quizData.length) finishGame("全問正解済みです！", "#f6ad55");
+        }
+    }
+
+    function saveProgress() {
+        localStorage.setItem(config.storageKey, JSON.stringify(Array.from(answeredIndices)));
+    }
+
+input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !isGameOver) {
+            const val = input.value.trim();
+            if (val === "") return;
+            let targetIndex = quizData.findIndex(item => item.accept.includes(val));
+
+            if (targetIndex !== -1) {
+                if (answeredIndices.has(targetIndex)) {
+                    showMessage("回答済みです", "#cbd5e0");
+                    // すでに正解済みでも、その場所を教えてあげるためにスクロールさせる
+                    document.getElementById('target-' + targetIndex).scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'center'
+                    });
+                } else {
+                    answeredIndices.add(targetIndex);
+                    updateItemDisplay(targetIndex, true); // ここでスクロールが実行されます
+                    foundCount++;
+                    remainingText.textContent = quizData.length - foundCount;
+                    showMessage("正解！", "#f6ad55");
+                    saveProgress();
+                    updateLimitGauge();
+                    if (foundCount === quizData.length) finishGame("全問正解！おめでとう！", "#f6ad55");
+                }
+            } else {
+                showMessage("ミス！", "#fc8181");
+            }
+            input.value = '';
+        }
+    });
+
+function updateItemDisplay(index, isCorrect) {
+        const targetEl = document.getElementById('target-' + index);
+        const data = quizData[index];
+        targetEl.innerHTML = `
+            <div class="hint-text">${data.hint}</div>
+            <div class="answer-text">${data.display}</div>
+        `;
+        
+        if (isCorrect) {
+            targetEl.classList.add('found');
+            // --- 追加: スクロール処理 ---
+            targetEl.scrollIntoView({
+                behavior: 'smooth', // 滑らかに動かす
+                block: 'center'      // 画面の中央にくるように調整
+            });
+        } else {
+            targetEl.classList.add('missed');
+        }
+    }
+
+    giveupBtn.addEventListener('click', () => {
+        quizData.forEach((item, index) => { if (!answeredIndices.has(index)) updateItemDisplay(index, false); });
+        finishGame("GAME OVER", "#ffffff");
+    });
+
+    retryBtn.addEventListener('click', () => {
+        if(confirm("進行状況をリセットして最初から遊びますか？")) { localStorage.removeItem(config.storageKey); init(); }
+    });
+
+    function finishGame(msg, color) {
+        isGameOver = true;
+        input.disabled = true;
+        input.placeholder = config.placeholderGameOver;
+        giveupBtn.style.display = 'none';
+        retryBtn.style.display = 'inline-block';
+        showMessage(msg, color);
+        updateLimitGauge();
+    }
+
+    function showMessage(text, color) {
+        messageEl.textContent = text;
+        messageEl.style.color = color;
+        if (!isGameOver) setTimeout(() => { if (messageEl.textContent === text) messageEl.textContent = ""; }, 1500);
+    }
+
+    init();
+</script>
+
+</body>
+</html>

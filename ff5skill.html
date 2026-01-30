@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>FF5 魔法・技いえるかな</title>
+    <style>
+        /* FF5 ブルーウィンドウ再現 */
+        :root {
+            --ff-blue: linear-gradient(to bottom, #0000ad 0%, #00004a 100%);
+            --ff-border: #ffffff;
+        }
+
+        body {
+            font-family: 'MS Gothic', 'Courier New', monospace;
+            text-align: center;
+            background-color: #000;
+            color: white;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: var(--ff-blue);
+            padding: 15px;
+            border-radius: 8px;
+            border: 3px solid var(--ff-border);
+            box-shadow: inset 0 0 0 2px #000, 5px 5px 15px rgba(0,0,0,0.8);
+        }
+
+        .sticky-header {
+            position: sticky;
+            top: 0;
+            background: rgba(0, 0, 100, 0.95);
+            padding: 15px 0;
+            z-index: 100;
+            border-bottom: 2px solid rgba(255,255,255,0.3);
+            margin-bottom: 20px;
+        }
+
+        h2 {
+            margin: 0 0 15px 0;
+            font-size: 24px;
+            letter-spacing: 2px;
+            text-shadow: 2px 2px 0px #000;
+        }
+
+        /* ゲージと％を横並びにするレイアウト */
+        .gauge-flex-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            max-width: 500px;
+            margin: 10px auto;
+        }
+
+        .limit-gauge-outer {
+            flex-grow: 1;
+            padding: 2px;
+            background: #444;
+            border: 2px solid #888;
+        }
+
+        .limit-gauge-bg {
+            height: 18px;
+            background: #222;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #limitFill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(to bottom, #ffff00 0%, #ff8800 100%);
+            transition: width 0.3s linear;
+        }
+
+        .limit-label {
+            font-size: 18px;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 2px 2px 0 #000;
+            min-width: 80px;
+            text-align: left;
+        }
+
+        .status {
+            font-size: 1.1em;
+            margin: 10px 0;
+            color: #ffff00;
+            text-shadow: 1px 1px 0 #000;
+        }
+
+        #message { height: 24px; margin-bottom: 10px; font-weight: bold; }
+
+        input {
+            font-size: 18px;
+            padding: 8px;
+            width: 50%;
+            background: #000;
+            color: #fff;
+            border: 2px solid #fff;
+            outline: none;
+            margin-bottom: 10px;
+        }
+
+        .btn {
+            padding: 8px 15px;
+            background: #000080;
+            color: #fff;
+            border: 2px solid #fff;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .btn:hover { background: #0000ff; }
+
+        .list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+            gap: 10px;
+        }
+
+        .item {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 10px 5px;
+            min-height: 50px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .item.found {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid #ffff00;
+            box-shadow: inset 0 0 8px rgba(255, 255, 0, 0.5);
+        }
+
+        .hint-text {
+            color: #00ffff;
+            font-size: 12px;
+            margin-bottom: 4px;
+            text-shadow: 1px 1px 0 #000;
+        }
+
+        .answer-text {
+            font-size: 15px;
+            color: #fff;
+            font-weight: bold;
+        }
+
+        .item.missed .answer-text {
+            color: #ff4444;
+        }
+
+        @keyframes flash {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .limit-max #limitFill {
+            background: #fff !important;
+            box-shadow: 0 0 10px #fff;
+            animation: flash 0.1s infinite;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="sticky-header">
+        <h2>FF5 魔法・技いえるかな</h2>
+        
+        <div class="gauge-flex-container" id="gaugeWrapper">
+            <div class="limit-gauge-outer">
+                <div class="limit-gauge-bg">
+                    <div id="limitFill"></div>
+                </div>
+            </div>
+            <div class="limit-label" id="progressPercent">0%</div> 
+        </div>
+
+        <div class="status">のこり: <span id="remaining">--</span> / <span id="total">--</span></div>
+        <div id="message"></div>
+        <input type="text" id="answerInput" placeholder="なまえを いれてください" autofocus autocomplete="off">
+        <button class="btn giveup-btn" id="giveupBtn">ギブアップ</button>
+        <button class="btn retry-btn" id="retryBtn" style="display:none;">もういちど</button>
+    </div>
+    <div class="list" id="answerList"></div>
+</div>
+
+<script>
+    const config = {
+        placeholderNormal: "なまえを いれてください",
+        placeholderGameOver: "GAME OVER",
+        storageKey: "quiz_save_" + document.title
+    };
+
+    const quizData = [
+        // しろまほう
+        { display: "ケアル", accept: ["ケアル", "けある"], hint: "しろまほう" },
+        { display: "ライブラ", accept: ["ライブラ", "らいぶら"], hint: "しろまほう" },
+        { display: "ポイゾナ", accept: ["ポイゾナ", "ぽいぞな"], hint: "しろまほう" },
+        { display: "サイレス", accept: ["サイレス", "さいれす"], hint: "しろまほう" },
+        { display: "プロテス", accept: ["プロテス", "ぷろてす"], hint: "しろまほう" },
+        { display: "ミニマム", accept: ["ミニマム", "みにまむ"], hint: "しろまほう" },
+        { display: "ケアルラ", accept: ["ケアルラ", "けあるら"], hint: "しろまほう" },
+        { display: "レイズ", accept: ["レイズ", "れいず"], hint: "しろまほう" },
+        { display: "コンフュ", accept: ["コンフュ", "こんふゅ"], hint: "しろまほう" },
+        { display: "ブリンク", accept: ["ブリンク", "ぶりんく"], hint: "しろまほう" },
+        { display: "シェル", accept: ["シェル", "しぇる"], hint: "しろまほう" },
+        { display: "エスナ", accept: ["エスナ", "えすな"], hint: "しろまほう" },
+        { display: "ケアルガ", accept: ["ケアルガ", "けあるが"], hint: "しろまほう" },
+        { display: "リフレク", accept: ["リフレク", "りふれく"], hint: "しろまほう" },
+        { display: "バーサク", accept: ["バーサク", "ばーさく"], hint: "しろまほう" },
+        { display: "アレイズ", accept: ["アレイズ", "あれいず"], hint: "しろまほう" },
+        { display: "ホーリー", accept: ["ホーリー", "ほーりー"], hint: "しろまほう" },
+        { display: "ディスペル", accept: ["ディスペル", "でぃすぺる"], hint: "しろまほう" },
+        // くろまほう
+        { display: "ファイア", accept: ["ファイア", "ふぁいあ"], hint: "くろまほう" },
+        { display: "ブリザド", accept: ["ブリザド", "ぶりざど"], hint: "くろまほう" },
+        { display: "サンダー", accept: ["サンダー", "さんだー"], hint: "くろまほう" },
+        { display: "ポイズン", accept: ["ポイズン", "ぽいずん"], hint: "くろまほう" },
+        { display: "スリプル", accept: ["スリプル", "すりぷる"], hint: "くろまほう" },
+        { display: "トード", accept: ["トード", "とーど"], hint: "くろまほう" },
+        { display: "ファイラ", accept: ["ファイラ", "ふぁいら"], hint: "くろまほう" },
+        { display: "ブリザラ", accept: ["ブリザラ", "ぶりざら"], hint: "くろまほう" },
+        { display: "サンダラ", accept: ["サンダラ", "さんだら"], hint: "くろまほう" },
+        { display: "ドレイン", accept: ["ドレイン", "どれいん"], hint: "くろまほう" },
+        { display: "ブレイク", accept: ["ブレイク", "ぶれいく"], hint: "くろまほう" },
+        { display: "バイオ", accept: ["バイオ", "ばいお"], hint: "くろまほう" },
+        { display: "ファイガ", accept: ["ファイガ", "ふぁいが"], hint: "くろまほう" },
+        { display: "ブリザガ", accept: ["ブリザガ", "ぶりざが"], hint: "くろまほう" },
+        { display: "サンダガ", accept: ["サンダガ", "さんだが"], hint: "くろまほう" },
+        { display: "フレア", accept: ["フレア", "ふれあ"], hint: "くろまほう" },
+        { display: "デス", accept: ["デス", "です"], hint: "くろまほう" },
+        { display: "アスピル", accept: ["アスピル", "あすぴる"], hint: "くろまほう" },
+        // じくう
+        { display: "スピード", accept: ["スピード", "すぴーど"], hint: "じくう" },
+        { display: "スロウ", accept: ["スロウ", "すろう"], hint: "じくう" },
+        { display: "リジェネ", accept: ["リジェネ", "りじぇね"], hint: "じくう" },
+        { display: "ミュート", accept: ["ミュート", "みゅーと"], hint: "じくう" },
+        { display: "ヘイスト", accept: ["ヘイスト", "へいすと"], hint: "じくう" },
+        { display: "レビテト", accept: ["レビテト", "れびてと"], hint: "じくう" },
+        { display: "グラビデ", accept: ["グラビデ", "ぐらびで"], hint: "じくう" },
+        { display: "ストップ", accept: ["ストップ", "すとっぷ"], hint: "じくう" },
+        { display: "テレポ", accept: ["テレポ", "てれぽ"], hint: "じくう" },
+        { display: "コメット", accept: ["コメット", "こめっと"], hint: "じくう" },
+        { display: "スロウガ", accept: ["スロウガ", "すろうが"], hint: "じくう" },
+        { display: "リターン", accept: ["リターン", "りたーん"], hint: "じくう" },
+        { display: "グラビガ", accept: ["グラビガ", "ぐらびが"], hint: "じくう" },
+        { display: "ヘイスガ", accept: ["ヘイスガ", "へいすが"], hint: "じくう" },
+        { display: "オールド", accept: ["オールド", "おーるど"], hint: "じくう" },
+        { display: "メテオ", accept: ["メテオ", "めてお"], hint: "じくう" },
+        { display: "クイック", accept: ["クイック", "くいっく"], hint: "じくう" },
+        { display: "デジョン", accept: ["デジョン", "でじょん"], hint: "じくう" },
+        // あおまほう
+        { display: "しのせんこく", accept: ["しのせんこく", "死の宣告"], hint: "あおまほう" },
+        { display: "しのルーレット", accept: ["しのルーレット", "死のルーレット", "しのるーれっと"], hint: "あおまほう" },
+        { display: "アクアブレス", accept: ["アクアブレス", "あくあぶれす"], hint: "あおまほう" },
+        { display: "レベル5デス", accept: ["レベル5デス", "れべる5です", "れべるごです"], hint: "あおまほう" },
+        { display: "レベル4グラビガ", accept: ["レベル4グラビガ", "れべる4ぐらびが", "れべるよんぐらびが"], hint: "あおまほう" },
+        { display: "レベル2オールド", accept: ["レベル2オールド", "れべる2おーるど", "れべるにおーるど"], hint: "あおまほう" },
+        { display: "レベル3フレア", accept: ["レベル3フレア", "れべる3ふれあ", "れべるさんふれあ"], hint: "あおまほう" },
+        { display: "カエルのうた", accept: ["カエルのうた", "かえるのうた"], hint: "あおまほう" },
+        { display: "ちいさなメロディ", accept: ["ちいさなメロディ", "ちいさなめろでぃ"], hint: "あおまほう" },
+        { display: "フラッシュ", accept: ["フラッシュ", "ふらっしゅ"], hint: "あおまほう" },
+        { display: "タイムスリップ", accept: ["タイムスリップ", "たいむすりっぷ"], hint: "あおまほう" },
+        { display: "つきのふえ", accept: ["つきのふえ", "月の笛"], hint: "あおまほう" },
+        { display: "デスクロー", accept: ["デスクロー", "ですくろー"], hint: "あおまほう" },
+        { display: "エアロ", accept: ["エアロ", "えあろ"], hint: "あおまほう" },
+        { display: "エアロラ", accept: ["エアロラ", "えあろら"], hint: "あおまほう" },
+        { display: "エアロガ", accept: ["エアロガ", "えあろが"], hint: "あおまほう" },
+        { display: "かえんほうしゃ", accept: ["かえんほうしゃ", "火炎放射"], hint: "あおまほう" },
+        { display: "ゴブリンパンチ", accept: ["ゴブリンパンチ", "ごぶりんぱんち"], hint: "あおまほう" },
+        { display: "くろのしょうげき", accept: ["くろのしょうげき", "黒の衝撃"], hint: "あおまほう" },
+        { display: "ガードオファ", accept: ["ガードオファ", "がーどおふぁ"], hint: "あおまほう" },
+        { display: "ゆうごう", accept: ["ゆうごう", "融合"], hint: "あおまほう" },
+        { display: "マインドブラスト", accept: ["マインドブラスト", "まいんどぶらすと"], hint: "あおまほう" },
+        { display: "きゅうけつ", accept: ["きゅうけつ", "吸血"], hint: "あおまほう" },
+        { display: "マジックハンマー", accept: ["マジックハンマー", "まじっくはんまー"], hint: "あおまほう" },
+        { display: "マイティガード", accept: ["マイティガード", "まいてぃがーど"], hint: "あおまほう" },
+        { display: "じばく", accept: ["じばく", "自爆"], hint: "あおまほう" },
+        { display: "????", accept: ["????"], hint: "あおまほう" },
+        { display: "はりせんぼん", accept: ["はりせんぼん", "針千本"], hint: "あおまほう" },
+        { display: "ホワイトウインド", accept: ["ホワイトウインド", "ほわいとういんど"], hint: "あおまほう" },
+        { display: "ミサイル", accept: ["ミサイル", "みさいる"], hint: "あおまほう" },
+        // しょうかん
+        { display: "チョコボ", accept: ["チョコボ", "ちょこぼ"], hint: "しょうかん" },
+        { display: "シルフ", accept: ["シルフ", "しるふ"], hint: "しょうかん" },
+        { display: "レモラ", accept: ["レモラ", "れもら"], hint: "しょうかん" },
+        { display: "シヴァ", accept: ["シヴァ", "しゔぁ"], hint: "しょうかん" },
+        { display: "ラムウ", accept: ["ラムウ", "らむう"], hint: "しょうかん" },
+        { display: "イフリート", accept: ["イフリート", "いふりーと"], hint: "しょうかん" },
+        { display: "タイタン", accept: ["タイタン", "たいたん"], hint: "しょうかん" },
+        { display: "ゴーレム", accept: ["ゴーレム", "ごーれむ"], hint: "しょうかん" },
+        { display: "カトブレパス", accept: ["カトブレパス", "かとぶれぱす"], hint: "しょうかん" },
+        { display: "カーバンクル", accept: ["カーバンクル", "かーばんくる"], hint: "しょうかん" },
+        { display: "シルドラ", accept: ["シルドラ", "しるどら"], hint: "しょうかん" },
+        { display: "オーディン", accept: ["オーディン", "おーでぃん"], hint: "しょうかん" },
+        { display: "フェニックス", accept: ["フェニックス", "ふぇにっくす"], hint: "しょうかん" },
+        { display: "リバイアサン", accept: ["リバイアサン", "りばいあさん"], hint: "しょうかん" },
+        { display: "バハムート", accept: ["バハムート", "ばはむーと"], hint: "しょうかん" },
+        { display: "エッグマン", accept: ["エッグマン", "えっぐまん"], hint: "しょうかん" },
+        // ちけい
+        { display: "ウォーターフォール", accept: ["ウォーターフォール", "うぉーたーふぉーる"], hint: "ちけい" },
+        { display: "うずしお", accept: ["うずしお"], hint: "ちけい" },
+        { display: "おおつなみ", accept: ["おおつなみ"], hint: "ちけい" },
+        { display: "おにび", accept: ["おにび"], hint: "ちけい" },
+        { display: "かまいたち", accept: ["かまいたち"], hint: "ちけい" },
+        { display: "このはらんぶ", accept: ["このはらんぶ"], hint: "ちけい" },
+        { display: "さじん", accept: ["さじん"], hint: "ちけい" },
+        { display: "じしん", accept: ["じしん"], hint: "ちけい" },
+        { display: "しょうにゅうせき", accept: ["しょうにゅうせき"], hint: "ちけい" },
+        { display: "そこなしぬま", accept: ["そこなしぬま"], hint: "ちけい" },
+        { display: "ソニックブーム", accept: ["ソニックブーム", "そにっくぶーむ"], hint: "ちけい" },
+        { display: "たつまき", accept: ["たつまき"], hint: "ちけい" },
+        { display: "つたじごく", accept: ["つたじごく"], hint: "ちけい" },
+        { display: "つなみ", accept: ["つなみ"], hint: "ちけい" },
+        { display: "デザートストーム", accept: ["デザートストーム", "でざーとすとーむ"], hint: "ちけい" },
+        { display: "とっぷう", accept: ["とっぷう"], hint: "ちけい" },
+        { display: "ねっさ", accept: ["ねっさ"], hint: "ちけい" },
+        { display: "フェーンファントム", accept: ["フェーンファントム", "ふぇーんふぁんとむ"], hint: "ちけい" },
+        { display: "ブランチアロウ", accept: ["ブランチアロウ"], hint: "ちけい" },
+        { display: "ブランチスピア", accept: ["ブランチスピア"], hint: "ちけい" },
+        { display: "ポイズンミスト", accept: ["ポイズンミスト"], hint: "ちけい" },
+        { display: "らくばん", accept: ["らくばん"], hint: "ちけい" },
+        { display: "りゅうさ", accept: ["りゅうさ"], hint: "ちけい" },
+        // どうぶつ
+        { display: "スカンク", accept: ["スカンク", "すかんく"], hint: "どうぶつ" },
+        { display: "ナイチンゲール", accept: ["ナイチンゲール", "ないちんげーる"], hint: "どうぶつ" },
+        { display: "はちのむれ", accept: ["はちのむれ"], hint: "どうぶつ" },
+        { display: "ファルコン", accept: ["ファルコン", "ふぁるこん"], hint: "どうぶつ" },
+        { display: "ミシディアうさぎ", accept: ["ミシディアうさぎ"], hint: "どうぶつ" },
+        { display: "モモンガ", accept: ["モモンガ", "ももんが"], hint: "どうぶつ" },
+        { display: "ユニコーン", accept: ["ユニコーン", "ゆにこーん"], hint: "どうぶつ" },
+        { display: "りす", accept: ["りす"], hint: "どうぶつ" },
+        { display: "ワイルドボー", accept: ["ワイルドボー"], hint: "どうぶつ" },
+        // うた
+        { display: "あいのうた", accept: ["あいのうた"], hint: "うた" },
+        { display: "えいゆうのうた", accept: ["えいゆうのうた"], hint: "うた" },
+        { display: "すばやさのうた", accept: ["すばやさのうた"], hint: "うた" },
+        { display: "たいりょくのうた", accept: ["たいりょくのうた"], hint: "うた" },
+        { display: "ちからのうた", accept: ["ちからのうた"], hint: "うた" },
+        { display: "まりょくのうた", accept: ["まりょくのうた"], hint: "うた" },
+        { display: "ゆうわくのうた", accept: ["ゆうわくのうた"], hint: "うた" },
+        { display: "レクイエム", accept: ["レクイエム", "れくいえむ"], hint: "うた" },
+        // おどり
+        { display: "つるぎのまい", accept: ["つるぎのまい"], hint: "おどり" },
+        { display: "ふたりのジルバ", accept: ["ふたりのジルバ"], hint: "おどり" },
+        { display: "ミステリーワルツ", accept: ["ミステリーワルツ"], hint: "おどり" },
+        { display: "みわくのタンゴ", accept: ["みわくのタンゴ"], hint: "おどり" }
+    ];
+
+    let foundCount = 0;
+    let isGameOver = false;
+    let answeredIndices = new Set();
+
+    const input = document.getElementById('answerInput');
+    const remainingText = document.getElementById('remaining');
+    const totalText = document.getElementById('total');
+    const listContainer = document.getElementById('answerList');
+    const messageEl = document.getElementById('message');
+    const giveupBtn = document.getElementById('giveupBtn');
+    const retryBtn = document.getElementById('retryBtn');
+    const limitFill = document.getElementById('limitFill');
+    const gaugeWrapper = document.getElementById('gaugeWrapper');
+    const progressPercentText = document.getElementById('progressPercent');
+
+    function updateLimitGauge() {
+        const percent = Math.floor((foundCount / quizData.length) * 100);
+        if(limitFill) limitFill.style.width = percent + "%";
+        if(progressPercentText) {
+            progressPercentText.textContent = (foundCount === quizData.length) ? "MASTER!!" : percent + "%";
+        }
+        if (foundCount === quizData.length && quizData.length > 0) {
+            gaugeWrapper.classList.add('limit-max');
+        } else {
+            gaugeWrapper.classList.remove('limit-max');
+        }
+    }
+
+    function init() {
+        foundCount = 0;
+        isGameOver = false;
+        answeredIndices.clear();
+        listContainer.innerHTML = '';
+        input.disabled = false;
+        input.value = '';
+        input.placeholder = config.placeholderNormal;
+        giveupBtn.style.display = 'inline-block';
+        retryBtn.style.display = 'none';
+        remainingText.textContent = quizData.length;
+        totalText.textContent = quizData.length;
+        messageEl.textContent = '';
+
+        quizData.forEach((item, index) => {
+            const div = document.createElement('div');
+            div.className = 'item';
+            div.id = 'target-' + index;
+            // ？？？を表示せず、ヒント（カテゴリ）のみを初期表示
+            div.innerHTML = `<div class="hint-text">${item.hint}</div><div class="answer-text"></div>`;
+            listContainer.appendChild(div);
+        });
+
+        loadProgress();
+        updateLimitGauge();
+    }
+
+    function loadProgress() {
+        const savedData = localStorage.getItem(config.storageKey);
+        if (savedData) {
+            const savedIndices = JSON.parse(savedData);
+            savedIndices.forEach(index => {
+                if (index < quizData.length) {
+                    answeredIndices.add(index);
+                    updateItemDisplay(index, true, false); // ロード時はスクロールしない
+                    foundCount++;
+                }
+            });
+            remainingText.textContent = quizData.length - foundCount;
+            if (foundCount > 0) showMessage("セーブデータから つづけます", "#ffff00");
+        }
+    }
+
+    function saveProgress() {
+        localStorage.setItem(config.storageKey, JSON.stringify(Array.from(answeredIndices)));
+    }
+
+    input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !isGameOver) {
+            const val = input.value.trim();
+            if (val === "") return;
+            let targetIndex = quizData.findIndex(item => item.accept.includes(val));
+
+            if (targetIndex !== -1) {
+                if (answeredIndices.has(targetIndex)) {
+                    showMessage("すでに みつけています", "#ffff00");
+                    scrollToItem(targetIndex);
+                } else {
+                    answeredIndices.add(targetIndex);
+                    updateItemDisplay(targetIndex, true, true);
+                    foundCount++;
+                    remainingText.textContent = quizData.length - foundCount;
+                    showMessage("正解！", "#ffffff");
+                    saveProgress();
+                    updateLimitGauge();
+                    if (foundCount === quizData.length) finishGame("コンプリート！", "#ffff00");
+                }
+            } else {
+                showMessage("ミス！", "#ff4444");
+            }
+            input.value = '';
+        }
+    });
+
+    function updateItemDisplay(index, isCorrect, shouldScroll) {
+        const targetEl = document.getElementById('target-' + index);
+        const data = quizData[index];
+        targetEl.innerHTML = `<div class="hint-text">${data.hint}</div><div class="answer-text">${data.display}</div>`;
+        
+        if (isCorrect) {
+            targetEl.classList.add('found');
+            if (shouldScroll) scrollToItem(index);
+        } else {
+            targetEl.classList.add('missed');
+        }
+    }
+
+    function scrollToItem(index) {
+        document.getElementById('target-' + index).scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+        });
+    }
+
+    giveupBtn.addEventListener('click', () => {
+        quizData.forEach((item, index) => {
+            if (!answeredIndices.has(index)) updateItemDisplay(index, false, false);
+        });
+        finishGame("しゅうりょう！ 答え合わせです", "#ffffff");
+    });
+
+    retryBtn.addEventListener('click', () => {
+        if(confirm("データをけして 最初から遊びますか？")) {
+            localStorage.removeItem(config.storageKey);
+            init();
+        }
+    });
+
+    function finishGame(msg, color) {
+        isGameOver = true;
+        input.disabled = true;
+        input.placeholder = config.placeholderGameOver;
+        giveupBtn.style.display = 'none';
+        retryBtn.style.display = 'inline-block';
+        showMessage(msg, color);
+    }
+
+    function showMessage(text, color) {
+        messageEl.textContent = text;
+        messageEl.style.color = color;
+    }
+
+    init();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>FF7 マテリアの名前いえるかな</title>
+    <style>
+        /* --- 既存のスタイルを維持しつつ、マテリアアイコン用を追加 --- */
+        .limit-gauge-outer { max-width: 600px; margin: 15px auto; padding: 3px; background: #444; border: 1px solid #888; border-radius: 4px; position: relative; }
+        .limit-gauge-bg { height: 20px; background: #000; border-radius: 2px; overflow: hidden; position: relative; }
+        #limitFill { height: 100%; width: 0%; background: linear-gradient(to right, #222, #0055aa 30%, #00aaff 60%, #ffffff 100%); box-shadow: 0 0 10px #00aaff; transition: width 0.4s ease-out; }
+        .limit-label { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-style: italic; font-size: 12px; font-weight: 900; color: #fff; text-shadow: 1px 1px 2px #000; z-index: 2; pointer-events: none; letter-spacing: 1px; }
+        @keyframes limit-flash { 0% { filter: brightness(1); } 50% { filter: brightness(1.8); box-shadow: 0 0 20px #fff; } 100% { filter: brightness(1); } }
+        .limit-max #limitFill { background: linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff); animation: limit-flash 0.2s infinite; }
+        
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; text-align: center; padding: 20px; background: linear-gradient(135deg, #000080 0%, #000040 50%, #000000 100%); background-attachment: fixed; color: white; margin: 0; }
+        .container { max-width: 1500px; margin: 20px auto; background: rgba(0, 0, 128, 0.7); padding: 20px; border-radius: 10px; border: 3px double #ffffff; box-shadow: 0 0 15px rgba(0,0,0,0.5); }
+        .sticky-header { position: sticky; top: 0; background: rgba(0, 0, 80, 0.95); padding: 20px 0; z-index: 100; border-bottom: 2px solid rgba(255,255,255,0.3); margin-bottom: 20px; }
+        h2 { margin: 0; color: #ffffff; text-shadow: 2px 2px 4px #000; }
+        .status { margin: 10px 0; font-weight: bold; font-size: 1.2em; color: #fff; }
+        #message { height: 24px; font-weight: bold; margin-bottom: 10px; }
+        input { font-size: 18px; padding: 10px; width: 40%; border: 2px solid #fff; border-radius: 5px; outline: none; background: #000; color: #fff; }
+        .btn { padding: 10px 20px; font-size: 16px; cursor: pointer; border-radius: 5px; border: 1px solid #fff; background: #000080; color: white; transition: 0.3s; vertical-align: middle; }
+        .btn:hover { background: #0000ff; }
+        .list { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-top: 20px; }
+        .item { padding: 10px 5px; background: rgba(255, 255, 255, 0.1); border-radius: 5px; color: #aaa; border: 1px solid rgba(255, 255, 255, 0.3); font-size: 14px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 50px; word-break: break-all; font-weight: bold; }
+        .hint-text { font-size: 0.85em; margin-bottom: 4px; color: #ccc; display: flex; align-items: center; gap: 5px; }
+        .answer-text { font-size: 1.05em; }
+        .item.found { background: #0078d7; color: white; border-color: #fff; box-shadow: 0 0 10px #0078d7; }
+        .item.found .hint-text { color: #e0e0e0; }
+        .item.missed { background: #000030; border-color: #fff; }
+        .item.missed .answer-text { color: #ff4444; }
+
+        /* --- マテリアアイコン用CSS --- */
+        .materia-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            border: 1px solid rgba(255,255,255,0.5);
+        }
+        /* 魔法: 緑 */
+        .dot-magic { background: radial-gradient(circle at 4px 4px, #a0ffa0, #00aa00); box-shadow: 0 0 8px #00ff00; }
+        /* 召喚: 赤 */
+        .dot-summon { background: radial-gradient(circle at 4px 4px, #ffa0a0, #aa0000); box-shadow: 0 0 8px #ff0000; }
+        /* 独立: 紫 */
+        .dot-indep { background: radial-gradient(circle at 4px 4px, #e0a0ff, #7700aa); box-shadow: 0 0 8px #cc00ff; }
+        /* 支援: 青 */
+        .dot-support { background: radial-gradient(circle at 4px 4px, #a0dfff, #0055ff); box-shadow: 0 0 8px #00aaff; }
+        /* コマンド: 黄 */
+        .dot-command { background: radial-gradient(circle at 4px 4px, #ffffa0, #aaaa00); box-shadow: 0 0 8px #ffff00; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="sticky-header">
+        <h2>FF7 マテリアの名前いえるかな</h2>
+        <div class="limit-gauge-outer" id="gaugeWrapper">
+            <div class="limit-label" id="progressPercent">0%</div> 
+            <div class="limit-gauge-bg">
+                <div id="limitFill"></div>
+            </div>
+        </div>
+        <div class="status">あと <span id="remaining">--</span> / <span id="total">--</span></div>
+        <div id="message"></div>
+        <input type="text" id="answerInput" placeholder="" autofocus autocomplete="off">
+        <button class="btn giveup-btn" id="giveupBtn">ギブアップ</button>
+        <button class="btn retry-btn" id="retryBtn" style="display:none;">もう一度遊ぶ</button>
+    </div>
+    <div class="list" id="answerList"></div>
+</div>
+
+<script>
+    const config = {
+        placeholderNormal: "名前を入力してEnter",
+        placeholderGameOver: "GAME OVER",
+        storageKey: "quiz_save_" + document.title
+    };
+
+    // --- quizData（省略なしですべて読み込まれます） ---
+    const quizData = [
+        /* 魔法 */
+        { display: "かいふく", accept: ["かいふく"], hint: "魔法マテリア" },
+        { display: "ちりょう", accept: ["ちりょう"], hint: "魔法マテリア" },
+        { display: "そせい", accept: ["そせい"], hint: "魔法マテリア" },
+        { display: "ほのお", accept: ["ほのお"], hint: "魔法マテリア" },
+        { display: "れいき", accept: ["れいき"], hint: "魔法マテリア" },
+        { display: "いかずち", accept: ["いかずち"], hint: "魔法マテリア" },
+        { display: "だいち", accept: ["だいち"], hint: "魔法マテリア" },
+        { display: "どく", accept: ["どく"], hint: "魔法マテリア" },
+        { display: "じゅうりょく", accept: ["じゅうりょく"], hint: "魔法マテリア" },
+        { display: "ふうじる", accept: ["ふうじる"], hint: "魔法マテリア" },
+        { display: "まどわす", accept: ["まどわす"], hint: "魔法マテリア" },
+        { display: "へんしん", accept: ["へんしん"], hint: "魔法マテリア" },
+        { display: "じかん", accept: ["じかん"], hint: "魔法マテリア" },
+        { display: "バリア", accept: ["バリア", "ばりあ"], hint: "魔法マテリア" },
+        { display: "しょうめつ", accept: ["しょうめつ"], hint: "魔法マテリア" },
+        { display: "いんせき", accept: ["いんせき"], hint: "魔法マテリア" },
+        { display: "ふういん", accept: ["ふういん"], hint: "魔法マテリア" },
+        { display: "りだつ", accept: ["りだつ"], hint: "魔法マテリア" },
+        { display: "フルケア", accept: ["フルケア", "ふるけあ"], hint: "魔法マテリア" },
+        { display: "シールド", accept: ["シールド", "しーるど"], hint: "魔法マテリア" },
+        { display: "アルテマ", accept: ["アルテマ", "あるてま"], hint: "魔法マテリア" },
+        { display: "マスターまほう", accept: ["マスターまほう", "ますたーまほう"], hint: "魔法マテリア" },
+        /* 支援 */
+        { display: "コマンドカウンター", accept: ["コマンドカウンター", "こまんどかうんたー"], hint: "支援マテリア" },
+        { display: "ぜんたいか", accept: ["ぜんたいか"], hint: "支援マテリア" },
+        { display: "ぞくせい", accept: ["ぞくせい"], hint: "支援マテリア" },
+        { display: "ついかぎり", accept: ["ついかぎり"], hint: "支援マテリア" },
+        { display: "ついかこうか", accept: ["ついかこうか"], hint: "支援マテリア" },
+        { display: "ついでにぬすむ", accept: ["ついでにぬすむ"], hint: "支援マテリア" },
+        { display: "ファイナルアタック", accept: ["ファイナルアタック", "ふぁいなるあたっく"], hint: "支援マテリア" },
+        { display: "ふいうち", accept: ["ふいうち"], hint: "支援マテリア" },
+        { display: "まほうカウンター", accept: ["まほうカウンター", "まほうかうんたー"], hint: "支援マテリア" },
+        { display: "まほうみだれうち", accept: ["まほうみだれうち"], hint: "支援マテリア" },
+        { display: "HPきゅうしゅう", accept: ["HPきゅうしゅう", "えいちぴーきゅうしゅう"], hint: "支援マテリア" },
+        { display: "MPきゅうしゅう", accept: ["MPきゅうしゅう", "えむぴーきゅうしゅう"], hint: "支援マテリア" },
+        { display: "MPターボ", accept: ["MPターボ", "えむぴーたーぼ"], hint: "支援マテリア" },
+        /* コマンド */
+        { display: "あやつる", accept: ["あやつる"], hint: "コマンドマテリア" },
+        { display: "ぜんたいぎり", accept: ["ぜんたいぎり"], hint: "コマンドマテリア" },
+        { display: "てきのわざ", accept: ["てきのわざ"], hint: "コマンドマテリア" },
+        { display: "なげる", accept: ["なげる"], hint: "コマンドマテリア" },
+        { display: "ぬすむ", accept: ["ぬすむ"], hint: "コマンドマテリア" },
+        { display: "ひっさつ", accept: ["ひっさつ"], hint: "コマンドマテリア" },
+        { display: "へんか", accept: ["へんか"], hint: "コマンドマテリア" },
+        { display: "マスターコマンド", accept: ["マスターコマンド", "ますたーこまんど"], hint: "コマンドマテリア" },
+        { display: "みやぶる", accept: ["みやぶる"], hint: "コマンドマテリア" },
+        { display: "ものまね", accept: ["ものまね"], hint: "コマンドマテリア" },
+        { display: "れんぞくぎり", accept: ["れんぞくぎり"], hint: "コマンドマテリア" },
+        { display: "Wアイテム", accept: ["Wアイテム", "だぶるあいてむ", "wあいてむ"], hint: "コマンドマテリア" },
+        { display: "Wしょうかん", accept: ["Wしょうかん", "だぶるしょうかん", "wしょうかん"], hint: "コマンドマテリア" },
+        { display: "Wまほう", accept: ["Wまほう", "だぶるまほう", "wまほう"], hint: "コマンドマテリア" },
+        /* 独立 */
+        { display: "えんきょりこうげき", accept: ["えんきょりこうげき"], hint: "独立マテリア" },
+        { display: "カウンター", accept: ["カウンター", "かうんたー"], hint: "独立マテリア" },
+        { display: "かばう", accept: ["かばう"], hint: "独立マテリア" },
+        { display: "ギルアップ", accept: ["ギルアップ", "ぎるあっぷ"], hint: "独立マテリア" },
+        { display: "けいけんちアップ", accept: ["けいけんちアップ", "けいけんちあっぷ"], hint: "独立マテリア" },
+        { display: "スピード", accept: ["スピード", "すぴーど"], hint: "独立マテリア" },
+        { display: "すべてぜんたいか", accept: ["すべてぜんたいか"], hint: "独立マテリア" },
+        { display: "せんすい", accept: ["せんすい"], hint: "独立マテリア" },
+        { display: "せんせいこうげき", accept: ["せんせいこうげき"], hint: "独立マテリア" },
+        { display: "チョコボよせ", accept: ["チョコボよせ", "ちょこぼよせ"], hint: "独立マテリア" },
+        { display: "てきよけ", accept: ["てきよけ"], hint: "独立マテリア" },
+        { display: "てきよせ", accept: ["てきよせ"], hint: "独立マテリア" },
+        { display: "マジカル", accept: ["マジカル", "まじかる"], hint: "独立マテリア" },
+        { display: "ラッキー", accept: ["ラッキー", "らっきー"], hint: "独立マテリア" },
+        { display: "HPアップ", accept: ["HPアップ", "えいちぴーあっぷ"], hint: "独立マテリア" },
+        { display: "HPMPいれかえ", accept: ["HPMPいれかえ", "えいちぴーえむぴーいれかえ"], hint: "独立マテリア" },
+        { display: "MPアップ", accept: ["MPアップ", "えむぴーあっぷ"], hint: "独立マテリア" },
+        /* 召喚 */
+        { display: "アレクサンダー", accept: ["アレクサンダー", "あれくさんだー"], hint: "召喚マテリア" },
+        { display: "イフリート", accept: ["イフリート", "いふりーと"], hint: "召喚マテリア" },
+        { display: "オーディーン", accept: ["オーディーン", "おーでぃーん"], hint: "召喚マテリア" },
+        { display: "クジャタ", accept: ["クジャタ", "くじゃた"], hint: "召喚マテリア" },
+        { display: "シヴァ", accept: ["シヴァ", "しゔぁ", "しわ"], hint: "召喚マテリア" },
+        { display: "タイタン", accept: ["タイタン", "たいたん"], hint: "召喚マテリア" },
+        { display: "チョコボ&モーグリ", accept: ["チョコボ&モーグリ", "ちょこぼあんどもーぐり", "ちょこぼ&もーぐり"], hint: "召喚マテリア" },
+        { display: "テュポーン", accept: ["テュポーン", "てゅぽーん"], hint: "召喚マテリア" },
+        { display: "ナイツオブラウンド", accept: ["ナイツオブラウンド", "ないつおぶらうんど"], hint: "召喚マテリア" },
+        { display: "ハーデス", accept: ["ハーデス", "はーです"], hint: "召喚マテリア" },
+        { display: "バハムート", accept: ["バハムート", "ばはむーと"], hint: "召喚マテリア" },
+        { display: "バハムート改", accept: ["バハムート改", "ばはむーとかい"], hint: "召喚マテリア" },
+        { display: "バハムート零式", accept: ["バハムート零式", "ばはむーとぜろしき"], hint: "召喚マテリア" },
+        { display: "フェニックス", accept: ["フェニックス", "ふぇにっくす"], hint: "召喚マテリア" },
+        { display: "マスターしょうかん", accept: ["マスターしょうかん", "ますたーしょうかん"], hint: "召喚マテリア" },
+        { display: "ラムウ", accept: ["ラムウ", "らむう"], hint: "召喚マテリア" },
+        { display: "リヴァイアサン", accept: ["リヴァイアサン", "りゔぁいあさん"], hint: "召喚マテリア" }
+    ];
+
+    let foundCount = 0;
+    let isGameOver = false;
+    let answeredIndices = new Set();
+
+    const input = document.getElementById('answerInput');
+    const remainingText = document.getElementById('remaining');
+    const totalText = document.getElementById('total');
+    const listContainer = document.getElementById('answerList');
+    const messageEl = document.getElementById('message');
+    const giveupBtn = document.getElementById('giveupBtn');
+    const retryBtn = document.getElementById('retryBtn');
+    const limitFill = document.getElementById('limitFill');
+    const gaugeWrapper = document.getElementById('gaugeWrapper');
+
+    // ヒントからマテリアのアイコン（点）を取得する関数
+    function getMateriaIcon(hint) {
+        let colorClass = "";
+        if (hint.includes("魔法")) colorClass = "dot-magic";
+        else if (hint.includes("召喚")) colorClass = "dot-summon";
+        else if (hint.includes("独立")) colorClass = "dot-indep";
+        else if (hint.includes("支援")) colorClass = "dot-support";
+        else if (hint.includes("コマンド")) colorClass = "dot-command";
+        
+        return colorClass ? `<span class="materia-dot ${colorClass}"></span>` : "";
+    }
+
+    function updateLimitGauge() {
+        const percent = Math.floor((foundCount / quizData.length) * 100);
+        if(limitFill) limitFill.style.width = percent + "%";
+        const percentDisplay = document.getElementById('progressPercent');
+        if (percentDisplay) {
+            percentDisplay.textContent = (foundCount === quizData.length) ? "LIMIT BREAK !!" : percent + "%";
+        }
+        if (foundCount === quizData.length && quizData.length > 0) {
+            gaugeWrapper.classList.add('limit-max');
+        } else {
+            gaugeWrapper.classList.remove('limit-max');
+        }
+    }
+
+    function init() {
+        foundCount = 0;
+        isGameOver = false;
+        answeredIndices.clear();
+        listContainer.innerHTML = '';
+        input.disabled = false;
+        input.value = '';
+        input.placeholder = config.placeholderNormal;
+        giveupBtn.style.display = 'inline-block';
+        retryBtn.style.display = 'none';
+        remainingText.textContent = quizData.length;
+        totalText.textContent = quizData.length;
+        messageEl.textContent = '';
+
+        quizData.forEach((item, index) => {
+            const div = document.createElement('div');
+            div.className = 'item';
+            div.id = 'target-' + index;
+            // 初期状態でもアイコンを表示
+            div.innerHTML = `<div class="hint-text">${getMateriaIcon(item.hint)}${item.hint}</div>`;
+            listContainer.appendChild(div);
+        });
+
+        loadProgress();
+        updateLimitGauge();
+    }
+
+    function loadProgress() {
+        const savedData = localStorage.getItem(config.storageKey);
+        if (savedData) {
+            const savedIndices = JSON.parse(savedData);
+            savedIndices.forEach(index => {
+                if (index < quizData.length) {
+                    answeredIndices.add(index);
+                    updateItemDisplay(index, true, false); // 初期ロード時はスクロールしない
+                    foundCount++;
+                }
+            });
+            remainingText.textContent = quizData.length - foundCount;
+            if (foundCount > 0) showMessage("続きから開始します", "#4caf50");
+            if (foundCount === quizData.length) finishGame("全問正解済みです！", "#ff9800");
+        }
+        updateLimitGauge();
+    }
+
+    function saveProgress() {
+        localStorage.setItem(config.storageKey, JSON.stringify(Array.from(answeredIndices)));
+    }
+
+    function clearProgress() {
+        localStorage.removeItem(config.storageKey);
+    }
+
+    input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !isGameOver) {
+            const val = input.value.trim();
+            if (val === "") return;
+            let targetIndex = quizData.findIndex(item => item.accept.includes(val));
+
+            if (targetIndex !== -1) {
+                if (answeredIndices.has(targetIndex)) {
+                    showMessage("回答済みです", "#ffcc00");
+                    document.getElementById('target-' + targetIndex).scrollIntoView({ behavior: 'smooth', block: 'center' });
+                } else {
+                    answeredIndices.add(targetIndex);
+                    updateItemDisplay(targetIndex, true, true);
+                    foundCount++;
+                    remainingText.textContent = quizData.length - foundCount;
+                    showMessage("正解！", "#4caf50");
+                    saveProgress();
+                    updateLimitGauge();
+                    if (foundCount === quizData.length) finishGame("全問正解！おめでとう！", "#ff9800");
+                }
+            } else {
+                showMessage("ミス！", "#e91e63");
+            }
+            input.value = '';
+        }
+    });
+
+    function updateItemDisplay(index, isCorrect, shouldScroll = true) {
+        const targetEl = document.getElementById('target-' + index);
+        const data = quizData[index];
+        const icon = getMateriaIcon(data.hint);
+        
+        targetEl.innerHTML = `
+            <div class="hint-text">${icon}${data.hint}</div>
+            <div class="answer-text">${data.display}</div>
+        `;
+        
+        if (isCorrect) {
+            targetEl.classList.add('found');
+            if (shouldScroll) {
+                targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        } else {
+            targetEl.classList.add('missed');
+        }
+    }
+
+    giveupBtn.addEventListener('click', () => {
+        revealAllAnswers();
+        finishGame("終了！答え合わせです", "#ffffff");
+    });
+
+    retryBtn.addEventListener('click', () => {
+        if(confirm("進行状況をリセットして最初から遊びますか？")) {
+            clearProgress();
+            init();
+        }
+    });
+
+    function revealAllAnswers() {
+        quizData.forEach((item, index) => {
+            if (!answeredIndices.has(index)) {
+                updateItemDisplay(index, false, false);
+            }
+        });
+    }
+
+    function finishGame(msg, color) {
+        isGameOver = true;
+        input.disabled = true;
+        input.placeholder = config.placeholderGameOver;
+        input.value = '';
+        giveupBtn.style.display = 'none';
+        retryBtn.style.display = 'inline-block';
+        showMessage(msg, color);
+        updateLimitGauge();
+    }
+
+    function showMessage(text, color) {
+        messageEl.textContent = text;
+        messageEl.style.color = color;
+        if (!isGameOver) {
+            setTimeout(() => { if (messageEl.textContent === text) messageEl.textContent = ""; }, 1500);
+        }
+    }
+
+    init();
+</script>
+
+</body>
+</html>
