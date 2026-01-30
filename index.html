@@ -12,6 +12,8 @@
             --text-sub: #64748b;
             --card-bg: #ffffff;
             --progress-bg: #e2e8f0;
+            /* ゴールドグラデーションの定義 */
+            --gold-gradient: linear-gradient(45deg, #bf953f, #fcf6ba, #b38728, #fbf5b7, #aa771c);
         }
 
         body {
@@ -49,49 +51,98 @@
             gap: 2rem;
         }
 
+        /* --- クイズカード基本設定 --- */
         .quiz-card {
             background: var(--card-bg);
             border-radius: 12px;
-            overflow: hidden;
             text-decoration: none;
             color: inherit;
             transition: all 0.25s ease;
             border: 1px solid #e2e8f0;
             display: flex;
             flex-direction: column;
+            position: relative;
+            z-index: 1;
         }
 
         .quiz-card:hover {
             transform: translateY(-4px);
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
-            border-color: var(--primary-color);
+            border-color: var(--category-color, var(--primary-color));
         }
 
+        /* --- 達成度100%時のスペシャルスタイル --- */
+        .quiz-card.is-complete {
+            border: none; /* 枠線を擬似要素で描画するため */
+            background: linear-gradient(to bottom, #ffffff, #fffdf2);
+        }
+
+        /* 達成時の外枠（ゴールドグラデーション） */
+        .quiz-card.is-complete::before {
+            content: "";
+            position: absolute;
+            top: -2px; left: -2px; right: -2px; bottom: -2px;
+            background: #fff;
+            border-radius: 14px;
+            z-index: -1;
+            box-shadow: 0 0 15px rgba(184, 134, 11, 0.3);
+        }
+
+        .complete-badge {
+            display: none;
+            background: var(--gold-gradient);
+            color: #5d4037;
+            font-size: 0.7rem;
+            font-weight: 900;
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin-left: 8px;
+            vertical-align: middle;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        .is-complete .complete-badge {
+            display: inline-block;
+            animation: shine-badge 3s infinite linear;
+        }
+
+        .is-complete .progress-bar-fill {
+            background: var(--gold-gradient);
+        }
+
+        .is-complete .percent-text {
+            color: #b38728;
+            font-weight: 800;
+        }
+
+        .is-complete:hover {
+            box-shadow: 0 15px 30px -5px rgba(184, 134, 11, 0.4);
+        }
+
+        @keyframes shine-badge {
+            0% { opacity: 0.9; }
+            50% { filter: brightness(1.2); }
+            100% { opacity: 0.9; }
+        }
+
+        /* --- 各種パーツ --- */
         .card-content {
             padding: 1.5rem;
             flex-grow: 1;
         }
 
-/* --- CSS修正部分 --- */
-.category-tag {
-    display: inline-block;
-    /* デフォルト値として青系を設定。--category-colorがない場合に適用される */
-    background: color-mix(in srgb, var(--category-color, #2563eb) 10%, white);
-    color: var(--category-color, #2563eb);
-    font-size: 0.75rem;
-    font-weight: 600;
-    padding: 0.25rem 0.75rem;
-    border-radius: 9999px;
-    margin-bottom: 1rem;
-    text-transform: uppercase;
-}
-
-.quiz-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
-    /* ホバー時の枠線もカテゴリの色に合わせる */
-    border-color: var(--category-color, var(--primary-color));
-}
+        .category-tag {
+            display: inline-block;
+            background: color-mix(in srgb, var(--category-color, #2563eb) 10%, white);
+            color: var(--category-color, #2563eb);
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+        }
 
         .quiz-card h2 {
             margin: 0 0 0.75rem 0;
@@ -100,18 +151,17 @@
         }
 
         .quiz-card p {
-            margin: 0;
+            margin: 0 0 1.5rem;
             font-size: 0.95rem;
             color: var(--text-sub);
-            margin-bottom: 1.5rem;
         }
 
-        /* --- 進捗表示用スタイル --- */
         .progress-container {
             margin-top: auto;
             background: #f1f5f9;
             padding: 1rem 1.5rem;
             border-top: 1px solid #e2e8f0;
+            border-radius: 0 0 11px 11px; /* カードの内側に合わせる */
         }
 
         .progress-info {
@@ -134,24 +184,16 @@
         .progress-bar-fill {
             height: 100%;
             background: var(--primary-color);
-            width: 0%; /* JSで更新 */
+            width: 0%;
             transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
         }
-
-        .status-text {
-            color: var(--text-sub);
-        }
-
-        .percent-text {
-            color: var(--primary-color);
-        }
-        /* ----------------------- */
 
         @media (max-width: 640px) {
             .quiz-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
+<body>
 <body>
 
 <header>
@@ -169,7 +211,10 @@
             <div class="progress-container">
                 <div class="progress-info">
                     <span class="status-text">Progress: <span class="count-now">0</span>/144</span>
-                    <span class="percent-text">0%</span>
+                    <div>
+                        <span class="percent-text">0%</span>
+                        <span class="complete-badge">Complete!</span>
+                    </div>
                 </div>
                 <div class="progress-bar-bg">
                     <div class="progress-bar-fill"></div>
@@ -186,7 +231,10 @@
             <div class="progress-container">
                 <div class="progress-info">
                     <span class="status-text">Progress: <span class="count-now">0</span>/216</span>
-                    <span class="percent-text">0%</span>
+                    <div>
+                        <span class="percent-text">0%</span>
+                        <span class="complete-badge">Complete!</span>
+                    </div>
                 </div>
                 <div class="progress-bar-bg">
                     <div class="progress-bar-fill"></div>
@@ -202,7 +250,10 @@
             <div class="progress-container">
                 <div class="progress-info">
                     <span class="status-text">Progress: <span class="count-now">0</span>/70</span>
-                    <span class="percent-text">0%</span>
+                    <div>
+                        <span class="percent-text">0%</span>
+                        <span class="complete-badge">Complete!</span>
+                    </div>
                 </div>
                 <div class="progress-bar-bg">
                     <div class="progress-bar-fill"></div>
@@ -219,7 +270,10 @@
             <div class="progress-container">
                 <div class="progress-info">
                     <span class="status-text">Progress: <span class="count-now">0</span>/285</span>
-                    <span class="percent-text">0%</span>
+                    <div>
+                        <span class="percent-text">0%</span>
+                        <span class="complete-badge">Complete!</span>
+                    </div>
                 </div>
                 <div class="progress-bar-bg">
                     <div class="progress-bar-fill"></div>
@@ -235,22 +289,28 @@
             <div class="progress-container">
                 <div class="progress-info">
                     <span class="status-text">Progress: <span class="count-now">0</span>/83</span>
-                    <span class="percent-text">0%</span>
+                    <div>
+                        <span class="percent-text">0%</span>
+                        <span class="complete-badge">Complete!</span>
+                    </div>
                 </div>
                 <div class="progress-bar-bg">
                     <div class="progress-bar-fill"></div>
                 </div>
             </div>
         </a>        
-        <a href="ff8limit.html" class="quiz-card" data-quiz-key="FF8 特殊技の名前いえるかな" data-total="37">
+        <a href="ff8limit.html" class="quiz-card" data-quiz-key="FF8 特殊技の名前いえるかな" data-total="35">
             <div class="card-content">
                 <span class="category-tag">Game</span>
                 <h2>FF8 特殊技の名前いえるかな</h2>
             </div>
             <div class="progress-container">
                 <div class="progress-info">
-                    <span class="status-text">Progress: <span class="count-now">0</span>/37</span>
-                    <span class="percent-text">0%</span>
+                    <span class="status-text">Progress: <span class="count-now">0</span>/35</span>
+                    <div>
+                        <span class="percent-text">0%</span>
+                        <span class="complete-badge">Complete!</span>
+                    </div>
                 </div>
                 <div class="progress-bar-bg">
                     <div class="progress-bar-fill"></div>
@@ -266,7 +326,10 @@
             <div class="progress-container">
                 <div class="progress-info">
                     <span class="status-text">Progress: <span class="count-now">0</span>/58</span>
-                    <span class="percent-text">0%</span>
+                    <div>
+                        <span class="percent-text">0%</span>
+                        <span class="complete-badge">Complete!</span>
+                    </div>
                 </div>
                 <div class="progress-bar-bg">
                     <div class="progress-bar-fill"></div>
@@ -282,7 +345,10 @@
             <div class="progress-container">
                 <div class="progress-info">
                     <span class="status-text">Progress: <span class="count-now">0</span>/67</span>
-                    <span class="percent-text">0%</span>
+                    <div>
+                        <span class="percent-text">0%</span>
+                        <span class="complete-badge">Complete!</span>
+                    </div>
                 </div>
                 <div class="progress-bar-bg">
                     <div class="progress-bar-fill"></div>
@@ -299,7 +365,10 @@
             <div class="progress-container">
                 <div class="progress-info">
                     <span class="status-text">Progress: <span class="count-now">0</span>/200</span>
-                    <span class="percent-text">0%</span>
+                    <div>
+                        <span class="percent-text">0%</span>
+                        <span class="complete-badge">Complete!</span>
+                    </div>
                 </div>
                 <div class="progress-bar-bg">
                     <div class="progress-bar-fill"></div>
@@ -316,7 +385,10 @@
             <div class="progress-container">
                 <div class="progress-info">
                     <span class="status-text">Progress: <span class="count-now">0</span>/404</span>
-                    <span class="percent-text">0%</span>
+                    <div>
+                        <span class="percent-text">0%</span>
+                        <span class="complete-badge">Complete!</span>
+                    </div>
                 </div>
                 <div class="progress-bar-bg">
                     <div class="progress-bar-fill"></div>
@@ -333,7 +405,10 @@
             <div class="progress-container">
                 <div class="progress-info">
                     <span class="status-text">Progress: <span class="count-now">0</span>/100</span>
-                    <span class="percent-text">0%</span>
+                    <div>
+                        <span class="percent-text">0%</span>
+                        <span class="complete-badge">Complete!</span>
+                    </div>
                 </div>
                 <div class="progress-bar-bg">
                     <div class="progress-bar-fill"></div>
@@ -358,9 +433,9 @@
         cards.forEach(card => {
             const quizKey = card.getAttribute('data-quiz-key');
             const total = parseInt(card.getAttribute('data-total'));
-            const storageKey = "quiz_save_" + quizKey;
+            if (!quizKey || isNaN(total)) return;
 
-            // localStorageからデータを取得
+            const storageKey = "quiz_save_" + quizKey;
             const savedData = localStorage.getItem(storageKey);
             
             if (savedData) {
@@ -373,6 +448,11 @@
                     card.querySelector('.count-now').textContent = count;
                     card.querySelector('.percent-text').textContent = percent + "%";
                     card.querySelector('.progress-bar-fill').style.width = percent + "%";
+
+                    // 100%達成時の処理
+                    if (percent >= 100) {
+                        card.classList.add('is-complete');
+                    }
                 } catch (e) {
                     console.error("データの読み込みに失敗しました", e);
                 }
