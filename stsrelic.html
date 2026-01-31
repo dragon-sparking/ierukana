@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Slay the Spire: Relic Quiz</title>
+    <style>
+        :root {
+            /* Slay the Spire カラーパレット */
+            --bg-dark: #0f0f0f;
+            --panel-bg: rgba(25, 25, 25, 0.95);
+            --border-gold: #8c7851;
+            
+            /* クラス別カラー */
+            --color-ironclad: #9b2218;
+            --color-silent: #2e5d32;
+            --color-defect: #1c4d6d;
+            --color-watcher: #6a2c70;
+            --color-common: #444444;
+            
+            --text-main: #e0e0e0;
+        }
+
+        body {
+            font-family: 'Hiragino Mincho ProN', 'serif';
+            text-align: center;
+            background: radial-gradient(circle at center, #222 0%, #000 100%);
+            background-attachment: fixed;
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1500px;
+            margin: 0 auto;
+            background: var(--panel-bg);
+            border: 2px solid var(--border-gold);
+            box-shadow: 0 0 30px rgba(0,0,0,1);
+            padding: 20px;
+        }
+
+        .sticky-header {
+            position: sticky;
+            top: 0;
+            background: rgba(15, 15, 15, 0.98);
+            padding: 20px 0;
+            z-index: 100;
+            border-bottom: 2px solid var(--border-gold);
+            margin-bottom: 20px;
+            backdrop-filter: blur(8px);
+        }
+
+        h2 { 
+            margin: 0 0 10px 0; 
+            letter-spacing: 4px; 
+            color: #fff; 
+            text-shadow: 0 0 10px var(--border-gold);
+        }
+
+        /* プログレスゲージ（StS風：シンプルかつ重厚） */
+        .limit-gauge-outer {
+            max-width: 600px;
+            margin: 10px auto;
+            background: #000;
+            border: 1px solid var(--border-gold);
+            padding: 2px;
+            position: relative;
+        }
+
+        .limit-gauge-bg {
+            height: 14px;
+            background: #111;
+            overflow: hidden;
+        }
+
+        #limitFill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #444, var(--border-gold), #fff);
+            box-shadow: 0 0 10px rgba(255,255,255,0.2);
+            transition: width 0.5s ease;
+        }
+
+        .limit-label {
+            font-family: monospace;
+            color: var(--border-gold);
+            font-size: 1.1em;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        /* ステータスエリア */
+        .status { margin: 10px 0; font-size: 1em; letter-spacing: 2px; color: #aaa; }
+        #message { height: 24px; font-weight: bold; margin-bottom: 10px; }
+
+        /* 入力エリア */
+        input {
+            font-size: 18px;
+            padding: 12px;
+            width: 350px;
+            border: 1px solid var(--border-gold);
+            background: #000;
+            color: #fff;
+            outline: none;
+            text-align: center;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            font-size: 14px;
+            cursor: pointer;
+            border: 1px solid var(--border-gold);
+            background: #1a1a1a;
+            color: var(--border-gold);
+            font-weight: bold;
+            transition: 0.2s;
+            margin-left: 10px;
+        }
+
+        .btn:hover { background: var(--border-gold); color: #000; }
+
+        /* カードリストデザイン */
+        .list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 15px;
+            padding: 20px;
+        }
+
+        .item {
+            aspect-ratio: 3/4;
+            background: #111;
+            border: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+            transition: all 0.4s ease;
+            filter: grayscale(1) opacity(0.5); /* 未回答時は暗く */
+        }
+
+        .hint-text { font-size: 1em; margin-bottom: 8px; color: #ccc; }
+        .answer-text { font-size: 1.1em; font-weight: bold; color: #555; }
+
+        /* 正解時・公開時のスタイル */
+        .item.found, .item.missed {
+            filter: grayscale(0) opacity(1);
+            transform: translateY(-3px);
+            border-width: 2px;
+        }
+
+        .item.found .answer-text { color: #fff; text-shadow: 0 0 5px #fff; }
+
+        /* クラス別配色判定 */
+        .cls-ironclad.found { border-color: #ff4d00; background: linear-gradient(180deg, #4a0a0a, #111); box-shadow: 0 0 15px var(--color-ironclad); }
+        .cls-silent.found   { border-color: #7fff00; background: linear-gradient(180deg, #0a3a0a, #111); box-shadow: 0 0 15px var(--color-silent); }
+        .cls-defect.found   { border-color: #00e5ff; background: linear-gradient(180deg, #0a2a4a, #111); box-shadow: 0 0 15px var(--color-defect); }
+        .cls-watcher.found  { border-color: #e0b0ff; background: linear-gradient(180deg, #3a0a4a, #111); box-shadow: 0 0 15px var(--color-watcher); }
+        .cls-common.found   { border-color: #ffffff; background: linear-gradient(180deg, #333, #111); box-shadow: 0 0 15px #666; }
+
+        /* ギブアップ時 */
+        .item.missed { border-color: #ff4444 !important; background: #200 !important; }
+        .item.missed .answer-text { color: #ff4444; }
+
+        /* コンプリートアニメーション */
+        @keyframes gold-pulse {
+            0% { box-shadow: 0 0 5px gold; }
+            50% { box-shadow: 0 0 25px gold; filter: brightness(1.2); }
+            100% { box-shadow: 0 0 5px gold; }
+        }
+        .limit-max #limitFill {
+            background: gold;
+            animation: gold-pulse 1s infinite;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="sticky-header">
+        <h2>Slay the Spire: Relic Quiz</h2>
+        <div class="limit-label" id="progressPercent">0%</div> 
+        <div class="limit-gauge-outer" id="gaugeWrapper">
+            <div class="limit-gauge-bg">
+                <div id="limitFill"></div>
+            </div>
+        </div>
+        <div class="status">REMAINING: <span id="remaining">--</span> / <span id="total">--</span></div>
+        <div id="message"></div>
+        <input type="text" id="answerInput" placeholder="" autofocus autocomplete="off">
+        <button class="btn" id="giveupBtn">GIVE UP</button>
+        <button class="btn" id="retryBtn" style="display:none;">RESET RUN</button>
+    </div>
+    <div class="list" id="answerList"></div>
+</div>
+
+<script>
+    const config = {
+        placeholderNormal: "Enter Relic Name...",
+        placeholderGameOver: "RUN OVER",
+        storageKey: "quiz_save_" + document.title
+    };
+
+const quizData = [
+        { display: "アイスクリーム", accept: ["アイスクリーム"], hint: "レア"},
+        { display: "赤べこ", accept: ["赤べこ"], hint: "ノーマル"},
+        { display: "アストロラーベ", accept: ["アストロラーベ"], hint: "ボス"},
+        { display: "錨", accept: ["錨"], hint: "ノーマル"},
+        { display: "戦化粧", accept: ["戦化粧"], hint: "ノーマル"},
+        { display: "イチゴ", accept: ["イチゴ"], hint: "ノーマル"},
+        { display: "古のコイン", accept: ["古のコイン"], hint: "レア"},
+        { display: "祈りのルーレット", accept: ["祈りのルーレット"], hint: "レア"},
+        { display: "医療キット", accept: ["医療キット"], hint: "ショップ"},
+        { display: "インク瓶", accept: ["インク瓶"], hint: "アンコモン"},
+        { display: "インサーター", accept: ["インサーター"], hint: "ボス・ディフェクト専用"},
+        { display: "陰陽", accept: ["陰陽"], hint: "アンコモン・ウォッチャー専用"},
+        { display: "歌うボウル", accept: ["歌うボウル"], hint: "アンコモン"},
+        { display: "永久コマ", accept: ["永久コマ"], hint: "レア"},
+        { display: "エクトプラズム", accept: ["エクトプラズム"], hint: "ボス"},
+        { display: "エターナルフェザー", accept: ["エターナルフェザー"], hint: "アンコモン"},
+        { display: "黄金の偶像", accept: ["黄金の偶像"], hint: "イベント"},
+        { display: "黄金の目", accept: ["黄金の目"], hint: "レア・ウォッチャー専用"},
+        { display: "王者の枕", accept: ["王者の枕"], hint: "ノーマル"},
+        { display: "大釜", accept: ["大釜"], hint: "ショップ"},
+        { display: "おかしなマッシュルーム", accept: ["おかしなマッシュルーム"], hint: "イベント"},
+        { display: "教えの書", accept: ["教えの書"], hint: "イベント"},
+        { display: "お食事券", accept: ["お食事券"], hint: "ノーマル"},
+        { display: "お守り", accept: ["お守り"], hint: "ノーマル"},
+        { display: "玩具のオーニソプター", accept: ["玩具のオーニソプター"], hint: "ノーマル"},
+        { display: "折り紙キャエル", accept: ["折り紙キャエル"], hint: "アンコモン・アイアンクラッド専用"},
+        { display: "折り鶴", accept: ["折り鶴"], hint: "アンコモン・サイレント専用"},
+        { display: "オリハルコン", accept: ["オリハルコン"], hint: "ノーマル"},
+        { display: "オレンジ色の丸薬", accept: ["オレンジ色の丸薬"], hint: "ショップ"},
+        { display: "会員カード", accept: ["会員カード"], hint: "ショップ"},
+        { display: "懐中時計", accept: ["懐中時計"], hint: "レア"},
+        { display: "貝の化石", accept: ["貝の化石"], hint: "レア"},
+        { display: "カブ", accept: ["カブ"], hint: "レア"},
+        { display: "空っぽの檻", accept: ["空っぽの檻"], hint: "ボス"},
+        { display: "カリパス", accept: ["カリパス"], hint: "レア"},
+        { display: "カロンの遺灰", accept: ["カロンの遺灰"], hint: "レア・アイアンクラッド専用"},
+        { display: "感情制御回路", accept: ["感情制御回路"], hint: "レア・ディフェクト専用"},
+        { display: "奇妙なスプーン", accept: ["奇妙なスプーン"], hint: "ショップ"},
+        { display: "ギャンブルチップ", accept: ["ギャンブルチップ"], hint: "レア"},
+        { display: "狂信者の被り物", accept: ["狂信者の被り物"], hint: "イベント"},
+        { display: "共生ウイルス", accept: ["共生ウイルス"], hint: "アンコモン・ディフェクト専用"},
+        { display: "金メッキケーブル", accept: ["金メッキケーブル"], hint: "アンコモン・ディフェクト専用"},
+        { display: "苦痛の印", accept: ["苦痛の印"], hint: "ボス・アイアンクラッド専用"},
+        { display: "クナイ", accept: ["クナイ"], hint: "アンコモン"},
+        { display: "グレムリンの顔つき", accept: ["グレムリンの顔つき"], hint: "イベント"},
+        { display: "グレムリンの角笛", accept: ["グレムリンの角笛"], hint: "アンコモン"},
+        { display: "ケトルベル", accept: ["ケトルベル"], hint: "レア"},
+        { display: "ケミカルX", accept: ["ケミカルX","ケミカルＸ"], hint: "ショップ"},
+        { display: "賢者の石", accept: ["賢者の石"], hint: "ボス"},
+        { display: "原子力電池", accept: ["原子力電池"], hint: "ボス・ディフェクト専用"},
+        { display: "凍った卵", accept: ["凍った卵"], hint: "アンコモン"},
+        { display: "凍った目", accept: ["凍った目"], hint: "ショップ"},
+        { display: "コーヒードリッパー", accept: ["コーヒードリッパー"], hint: "ボス"},
+        { display: "香炉", accept: ["香炉"], hint: "レア"},
+        { display: "古代のティーセット", accept: ["古代のティーセット"], hint: "ノーマル"},
+        { display: "暦石", accept: ["暦石"], hint: "レア"},
+        { display: "壊れた王冠", accept: ["壊れた王冠"], hint: "ボス"},
+        { display: "昆虫標本", accept: ["昆虫標本"], hint: "ノーマル"},
+        { display: "サークレット", accept: ["サークレット"], hint: "イベント"},
+        { display: "サ・サ・サーペントの東部", accept: ["サ・サ・サーペントの東部"], hint: "イベント"},
+        { display: "ザ・ブーツ", accept: ["ザ・ブーツ"], hint: "ノーマル"},
+        { display: "自己形成粘土", accept: ["自己形成粘土"], hint: "アンコモン・アイアンクラッド専用"},
+        { display: "ししおどし", accept: ["ししおどし"], hint: "ボス"},
+        { display: "質問カード", accept: ["質問カード"], hint: "アンコモン"},
+        { display: "数珠ブレスレット", accept: ["数珠ブレスレット"], hint: "ノーマル"},
+        { display: "手裏剣", accept: ["手裏剣"], hint: "アンコモン"},
+        { display: "丈夫な包帯", accept: ["丈夫な包帯"], hint: "レア・サイレント専用"},
+        { display: "ショベル", accept: ["ショベル"], hint: "レア"},
+        { display: "白き獣の像", accept: ["白き獣の像"], hint: "アンコモン"},
+        { display: "ジンジャー", accept: ["ジンジャー"], hint: "レア"},
+        { display: "水銀の砂時計", accept: ["水銀の砂時計"], hint: "アンコモン"},
+        { display: "ストライクダミー", accept: ["ストライクダミー"], hint: "アンコモン"},
+        { display: "スネッコアイ", accept: ["スネッコアイ"], hint: "ボス"},
+        { display: "スネッコスカル", accept: ["スネッコスカル"], hint: "ノーマル・サイレント専用"},
+        { display: "すべすべ石", accept: ["すべすべ石"], hint: "ノーマル"},
+        { display: "スマイルマスク", accept: ["スマイルマスク"], hint: "ノーマル"},
+        { display: "スレイバーの首輪", accept: ["スレイバーの首輪"], hint: "ボス"},
+        { display: "聖樹皮", accept: ["聖樹皮"], hint: "ボス"},
+        { display: "聖職者の顔", accept: ["聖職者の顔"], hint: "イベント"},
+        { display: "清水", accept: ["清水"], hint: "ウォッチャー専用"},
+        { display: "聖水", accept: ["聖水"], hint: "ボス・ウォッチャー専用"},
+        { display: "青銅のウロコ", accept: ["青銅のウロコ"], hint: "ノーマル"},
+        { display: "精霊のふん", accept: ["精霊のふん"], hint: "イベント"},
+        { display: "扇子", accept: ["扇子"], hint: "アンコモン"},
+        { display: "船長の舵輪", accept: ["船長の舵輪"], hint: "レア"},
+        { display: "空飛ぶ靴", accept: ["空飛ぶ靴"], hint: "レア"},
+        { display: "そろばん", accept: ["そろばん"], hint: "ショップ"},
+        { display: "孫子兵法", accept: ["孫子兵法"], hint: "ノーマル"},
+        { display: "ダークストーンの護符", accept: ["ダークストーンの護符"], hint: "アンコモン"},
+        { display: "大蛇の指輪", accept: ["大蛇の指輪"], hint: "ボス・サイレント専用"},
+        { display: "太陽系儀", accept: ["太陽系儀"], hint: "ショップ"},
+        { display: "漂う凧", accept: ["漂う凧"], hint: "ボス・サイレント専用"},
+        { display: "ダマル", accept: ["ダマル"], hint: "ノーマル・ウォッチャー専用"},
+        { display: "タングステンの棒", accept: ["タングステンの棒"], hint: "レア"},
+        { display: "小さな家", accept: ["小さな家"], hint: "ボス"},
+        { display: "小さな宝箱", accept: ["小さな宝箱"], hint: "ノーマル"},
+        { display: "血塗られた偶像", accept: ["血塗られた偶像"], hint: "イベント"},
+        { display: "血のガラス瓶", accept: ["血のガラス瓶"], hint: "ノーマル"},
+        { display: "チャンピオンベルト", accept: ["チャンピオンベルト"], hint: "レア・アイアンクラッド専用"},
+        { display: "鳥頭壺", accept: ["鳥頭壺"], hint: "レア"},
+        { display: "ティンシャ", accept: ["ティンシャ"], hint: "レア・サイレント専用"},
+        { display: "データディスク", accept: ["データディスク"], hint: "ノーマル・ディフェクト専用"},
+        { display: "砥石", accept: ["砥石"], hint: "ノーマル"},
+        { display: "ドゥーヴー人形", accept: ["ドゥーヴー人形"], hint: "レア"},
+        { display: "道具箱", accept: ["道具箱"], hint: "ショップ"},
+        { display: "陶器の魚", accept: ["陶器の魚"], hint: "ノーマル"},
+        { display: "トカゲのしっぽ", accept: ["トカゲのしっぽ"], hint: "レア"},
+        { display: "毒の卵", accept: ["毒の卵"], hint: "アンコモン"},
+        { display: "時計仕掛けの記念品", accept: ["時計仕掛けの記念品"], hint: "ショップ"},
+        { display: "突然変異性筋肥大", accept: ["突然変異性筋肥大"], hint: "イベント"},
+        { display: "鳥居", accept: ["鳥居"], hint: "レア"},
+        { display: "ドリーの鏡", accept: ["ドリーの鏡"], hint: "ショップ"},
+        { display: "ドリームキャッチャー", accept: ["ドリームキャッチャー"], hint: "ノーマル"},
+        { display: "ニルリーのコーデックス", accept: ["ニルリーのコーデックス"], hint: "イベント"},
+        { display: "忍者の巻物", accept: ["忍者の巻物"], hint: "アンコモン・サイレント専用"},
+        { display: "ヌロスの贈り物", accept: ["ヌロスの贈り物"], hint: "イベント"},
+        { display: "ヌロスの飢えた顔", accept: ["ヌロスの飢えた顔"], hint: "イベント"},
+        { display: "ヌンチャク", accept: ["ヌンチャク"], hint: "ノーマル"},
+        { display: "ネオーの哀歌", accept: ["ネオーの哀歌"], hint: "イベント"},
+        { display: "ネクロノミコン", accept: ["ネクロノミコン"], hint: "イベント"},
+        { display: "捻じれたトング", accept: ["捻じれたトング"], hint: "イベント"},
+        { display: "捻じれた漏斗", accept: ["捻じれた漏斗"], hint: "ショップ・サイレント専用"},
+        { display: "呪いの鍵", accept: ["呪いの鍵"], hint: "ボス"},
+        { display: "バーニングブラッド", accept: ["バーニングブラッド"], hint: "アイアンクラッド専用"},
+        { display: "配達人", accept: ["配達人"], hint: "アンコモン"},
+        { display: "バジュラ", accept: ["バジュラ"], hint: "ノーマル"},
+        { display: "バックパック", accept: ["バックパック"], hint: "ノーマル"},
+        { display: "ハッピーフラワー", accept: ["ハッピーフラワー"], hint: "ノーマル"},
+        { display: "花の印", accept: ["花の印"], hint: "イベント"},
+        { display: "針と糸", accept: ["針と糸"], hint: "レア"},
+        { display: "パンタグラフ", accept: ["パンタグラフ"], hint: "アンコモン"},
+        { display: "ハンドドリル", accept: ["ハンドドリル"], hint: "ショップ"},
+        { display: "パンドラの箱", accept: ["パンドラの箱"], hint: "ボス"},
+        { display: "ビー玉袋", accept: ["ビー玉袋"], hint: "ノーマル"},
+        { display: "日時計", accept: ["日時計"], hint: "アンコモン"},
+        { display: "ひび割れたコア", accept: ["ひび割れたコア"], hint: "ディフェクト専用"},
+        { display: "百年パズル", accept: ["百年パズル"], hint: "ノーマル"},
+        { display: "標本サンプル", accept: ["標本サンプル"], hint: "レア・サイレント専用"},
+        { display: "瓶詰の雷", accept: ["瓶詰の雷"], hint: "アンコモン"},
+        { display: "瓶詰の竜巻", accept: ["瓶詰の竜巻"], hint: "アンコモン"},
+        { display: "瓶詰の炎", accept: ["瓶詰の炎"], hint: "アンコモン"},
+        { display: "ブラックスター", accept: ["ブラックスター"], hint: "ボス"},
+        { display: "ブラックブラッド", accept: ["ブラックブラッド"], hint: "ボス・アイアンクラッド専用"},
+        { display: "プリズムの破片", accept: ["プリズムの破片"], hint: "ショップ"},
+        { display: "ブリムストーン", accept: ["ブリムストーン"], hint: "ショップ・アイアンクラッド専用"},
+        { display: "ブルーキャンドル", accept: ["ブルーキャンドル"], hint: "アンコモン"},
+        { display: "古木の枝", accept: ["古木の枝"], hint: "レア"},
+        { display: "フローズンコア", accept: ["フローズンコア"], hint: "ボス・ディフェクト専用"},
+        { display: "蛇の指輪", accept: ["蛇の指輪"], hint: "サイレント専用"},
+        { display: "ベルベットチョーカー", accept: ["ベルベットチョーカー"], hint: "ボス"},
+        { display: "ペン先", accept: ["ペン先"], hint: "ノーマル"},
+        { display: "ポーションベルト", accept: ["ポーションベルト"], hint: "ノーマル"},
+        { display: "ホーンクリート", accept: ["ホーンクリート"], hint: "アンコモン"},
+        { display: "骨付き肉", accept: ["骨付き肉"], hint: "アンコモン"},
+        { display: "マジックフラワー", accept: ["マジックフラワー"], hint: "レア・アイアンクラッド専用"},
+        { display: "マトリョーシカ", accept: ["マトリョーシカ"], hint: "アンコモン"},
+        { display: "マンゴー", accept: ["マンゴー"], hint: "レア"},
+        { display: "マントの留め金", accept: ["マントの留め金"], hint: "レア・ウォッチャー専用"},
+        { display: "ミイラの手", accept: ["ミイラの手"], hint: "アンコモン"},
+        { display: "紫蓮華", accept: ["紫蓮華"], hint: "ボス・ウォッチャー専用"},
+        { display: "メランジ", accept: ["メランジ"], hint: "ショップ・ウォッチャー専用"},
+        { display: "モーバンク", accept: ["モーバンク"], hint: "ノーマル"},
+        { display: "安らぎのパイプ", accept: ["安らぎのパイプ"], hint: "レア"},
+        { display: "勇気のスリング", accept: ["勇気のスリング"], hint: "ショップ"},
+        { display: "融合ハンマー", accept: ["融合ハンマー"], hint: "ボス"},
+        { display: "洋ナシ", accept: ["洋ナシ"], hint: "アンコモン"},
+        { display: "溶融した卵", accept: ["溶融した卵"], hint: "アンコモン"},
+        { display: "呼びよせる鐘", accept: ["呼びよせる鐘"], hint: "ボス"},
+        { display: "ランタン", accept: ["ランタン"], hint: "ノーマル"},
+        { display: "リーのワッフル", accept: ["リーのワッフル"], hint: "ショップ"},
+        { display: "リストブレード", accept: ["リストブレード"], hint: "ボス・サイレント専用"},
+        { display: "涙滴状のペンダント", accept: ["涙滴状のペンダント"], hint: "アンコモン・ウォッチャー専用"},
+        { display: "ルーニックキューブ", accept: ["ルーニックキューブ"], hint: "ボス・アイアンクラッド専用"},
+        { display: "ルーニックコンデンサ", accept: ["ルーニックコンデンサ"], hint: "ショップ・ディフェクト専用"},
+        { display: "ルーニックドーム", accept: ["ルーニックドーム"], hint: "ボス"},
+        { display: "ルーニックピラミッド", accept: ["ルーニックピラミッド"], hint: "ボス"},
+        { display: "レターオープナー", accept: ["レターオープナー"], hint: "アンコモン"},
+        { display: "レッドスカル", accept: ["レッドスカル"], hint: "ノーマル・アイアンクラッド専用"},
+        { display: "レッドマスク", accept: ["レッドマスク"], hint: "イベント"},
+];
+
+    let foundCount = 0;
+    let isGameOver = false;
+    let answeredIndices = new Set();
+
+    const input = document.getElementById('answerInput');
+    const remainingText = document.getElementById('remaining');
+    const totalText = document.getElementById('total');
+    const listContainer = document.getElementById('answerList');
+    const messageEl = document.getElementById('message');
+    const giveupBtn = document.getElementById('giveupBtn');
+    const retryBtn = document.getElementById('retryBtn');
+    const limitFill = document.getElementById('limitFill');
+    const gaugeWrapper = document.getElementById('gaugeWrapper');
+
+    // ヒントからクラス名を判定する関数
+    function getClassByHint(hint) {
+        if (hint.includes("アイアンクラッド")) return "cls-ironclad";
+        if (hint.includes("サイレント")) return "cls-silent";
+        if (hint.includes("ディフェクト")) return "cls-defect";
+        if (hint.includes("ウォッチャー")) return "cls-watcher";
+        return "cls-common";
+    }
+
+    function updateLimitGauge() {
+        const percent = Math.floor((foundCount / quizData.length) * 100);
+        if(limitFill) limitFill.style.width = percent + "%";
+        const percentDisplay = document.getElementById('progressPercent');
+        if (percentDisplay) {
+            percentDisplay.textContent = (foundCount === quizData.length) ? "VICTORY!" : percent + "%";
+        }
+        if (foundCount === quizData.length && quizData.length > 0) {
+            gaugeWrapper.classList.add('limit-max');
+        } else {
+            gaugeWrapper.classList.remove('limit-max');
+        }
+    }
+
+    function init() {
+        foundCount = 0;
+        isGameOver = false;
+        answeredIndices.clear();
+        listContainer.innerHTML = '';
+        input.disabled = false;
+        input.value = '';
+        input.placeholder = config.placeholderNormal;
+        giveupBtn.style.display = 'inline-block';
+        retryBtn.style.display = 'none';
+        remainingText.textContent = quizData.length;
+        totalText.textContent = quizData.length;
+        messageEl.textContent = '';
+
+        quizData.forEach((item, index) => {
+            const div = document.createElement('div');
+            // ここで判定クラスを付与
+            const colorCls = getClassByHint(item.hint);
+            div.className = `item ${colorCls}`;
+            div.id = 'target-' + index;
+            div.innerHTML = `<div class="hint-text">${item.hint}</div><div class="answer-text">???</div>`;
+            listContainer.appendChild(div);
+        });
+
+        loadProgress();
+        updateLimitGauge();
+    }
+
+    function loadProgress() {
+        const savedData = localStorage.getItem(config.storageKey);
+        if (savedData) {
+            const savedIndices = JSON.parse(savedData);
+            savedIndices.forEach(index => {
+                if (index < quizData.length) {
+                    answeredIndices.add(index);
+                    updateItemDisplay(index, true, false); // ロード時はスクロールさせない
+                    foundCount++;
+                }
+            });
+            remainingText.textContent = quizData.length - foundCount;
+            if (foundCount > 0) showMessage("データをロードしました", "#8c7851");
+            if (foundCount === quizData.length) finishGame("ALL CARDS COLLECTED", "gold");
+        }
+        updateLimitGauge();
+    }
+
+    function saveProgress() {
+        localStorage.setItem(config.storageKey, JSON.stringify(Array.from(answeredIndices)));
+    }
+
+    function clearProgress() {
+        localStorage.removeItem(config.storageKey);
+    }
+
+    input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !isGameOver) {
+            const val = input.value.trim();
+            if (val === "") return;
+            let targetIndex = quizData.findIndex(item => item.accept.includes(val));
+
+            if (targetIndex !== -1) {
+                if (answeredIndices.has(targetIndex)) {
+                    showMessage("回答済みです", "#8c7851");
+                    document.getElementById('target-' + targetIndex).scrollIntoView({ behavior: 'smooth', block: 'center' });
+                } else {
+                    answeredIndices.add(targetIndex);
+                    updateItemDisplay(targetIndex, true, true);
+                    foundCount++;
+                    remainingText.textContent = quizData.length - foundCount;
+                    showMessage("正解！", "#7fff00");
+                    saveProgress();
+                    updateLimitGauge();
+                    if (foundCount === quizData.length) finishGame("VICTORY!", "gold");
+                }
+            } else {
+                showMessage("対象が存在しません", "#ff4444");
+            }
+            input.value = '';
+        }
+    });
+
+    function updateItemDisplay(index, isCorrect, shouldScroll) {
+        const targetEl = document.getElementById('target-' + index);
+        const data = quizData[index];
+        targetEl.innerHTML = `
+            <div class="hint-text">${data.hint}</div>
+            <div class="answer-text">${data.display}</div>
+        `;
+        
+        if (isCorrect) {
+            targetEl.classList.add('found');
+            if (shouldScroll) {
+                targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        } else {
+            targetEl.classList.add('missed');
+        }
+    }
+
+    giveupBtn.addEventListener('click', () => {
+        revealAllAnswers();
+        finishGame("RUN OVER", "#ff4444");
+    });
+
+    retryBtn.addEventListener('click', () => {
+        if(confirm("全ての記録を抹消してリスタートしますか？")) {
+            clearProgress();
+            init();
+        }
+    });
+
+    function revealAllAnswers() {
+        quizData.forEach((item, index) => {
+            if (!answeredIndices.has(index)) {
+                updateItemDisplay(index, false, false);
+            }
+        });
+    }
+
+    function finishGame(msg, color) {
+        isGameOver = true;
+        input.disabled = true;
+        input.placeholder = config.placeholderGameOver;
+        giveupBtn.style.display = 'none';
+        retryBtn.style.display = 'inline-block';
+        showMessage(msg, color);
+    }
+
+    function showMessage(text, color) {
+        messageEl.textContent = text;
+        messageEl.style.color = color;
+        if (!isGameOver) {
+            setTimeout(() => { if (messageEl.textContent === text) messageEl.textContent = ""; }, 1500);
+        }
+    }
+
+    init();
+</script>
+</body>
+</html>

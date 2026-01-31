@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Slay the Spire: Card Quiz</title>
+    <style>
+        :root {
+            /* Slay the Spire カラーパレット */
+            --bg-dark: #0f0f0f;
+            --panel-bg: rgba(25, 25, 25, 0.95);
+            --border-gold: #8c7851;
+            
+            /* クラス別カラー */
+            --color-ironclad: #9b2218;
+            --color-silent: #2e5d32;
+            --color-defect: #1c4d6d;
+            --color-watcher: #6a2c70;
+            --color-common: #444444;
+            
+            --text-main: #e0e0e0;
+        }
+
+        body {
+            font-family: 'Hiragino Mincho ProN', 'serif';
+            text-align: center;
+            background: radial-gradient(circle at center, #222 0%, #000 100%);
+            background-attachment: fixed;
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1500px;
+            margin: 0 auto;
+            background: var(--panel-bg);
+            border: 2px solid var(--border-gold);
+            box-shadow: 0 0 30px rgba(0,0,0,1);
+            padding: 20px;
+        }
+
+        .sticky-header {
+            position: sticky;
+            top: 0;
+            background: rgba(15, 15, 15, 0.98);
+            padding: 20px 0;
+            z-index: 100;
+            border-bottom: 2px solid var(--border-gold);
+            margin-bottom: 20px;
+            backdrop-filter: blur(8px);
+        }
+
+        h2 { 
+            margin: 0 0 10px 0; 
+            letter-spacing: 4px; 
+            color: #fff; 
+            text-shadow: 0 0 10px var(--border-gold);
+        }
+
+        /* プログレスゲージ（StS風：シンプルかつ重厚） */
+        .limit-gauge-outer {
+            max-width: 600px;
+            margin: 10px auto;
+            background: #000;
+            border: 1px solid var(--border-gold);
+            padding: 2px;
+            position: relative;
+        }
+
+        .limit-gauge-bg {
+            height: 14px;
+            background: #111;
+            overflow: hidden;
+        }
+
+        #limitFill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #444, var(--border-gold), #fff);
+            box-shadow: 0 0 10px rgba(255,255,255,0.2);
+            transition: width 0.5s ease;
+        }
+
+        .limit-label {
+            font-family: monospace;
+            color: var(--border-gold);
+            font-size: 1.1em;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        /* ステータスエリア */
+        .status { margin: 10px 0; font-size: 1em; letter-spacing: 2px; color: #aaa; }
+        #message { height: 24px; font-weight: bold; margin-bottom: 10px; }
+
+        /* 入力エリア */
+        input {
+            font-size: 18px;
+            padding: 12px;
+            width: 350px;
+            border: 1px solid var(--border-gold);
+            background: #000;
+            color: #fff;
+            outline: none;
+            text-align: center;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            font-size: 14px;
+            cursor: pointer;
+            border: 1px solid var(--border-gold);
+            background: #1a1a1a;
+            color: var(--border-gold);
+            font-weight: bold;
+            transition: 0.2s;
+            margin-left: 10px;
+        }
+
+        .btn:hover { background: var(--border-gold); color: #000; }
+
+        /* カードリストデザイン */
+        .list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 15px;
+            padding: 20px;
+        }
+
+        .item {
+            aspect-ratio: 3/4;
+            background: #111;
+            border: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+            transition: all 0.4s ease;
+            filter: grayscale(1) opacity(0.5); /* 未回答時は暗く */
+        }
+
+        .hint-text { font-size: 1em; margin-bottom: 8px; color: #ccc; }
+        .answer-text { font-size: 1.1em; font-weight: bold; color: #555; }
+
+        /* 正解時・公開時のスタイル */
+        .item.found, .item.missed {
+            filter: grayscale(0) opacity(1);
+            transform: translateY(-3px);
+            border-width: 2px;
+        }
+
+        .item.found .answer-text { color: #fff; text-shadow: 0 0 5px #fff; }
+
+        /* クラス別配色判定 */
+        .cls-ironclad.found { border-color: #ff4d00; background: linear-gradient(180deg, #4a0a0a, #111); box-shadow: 0 0 15px var(--color-ironclad); }
+        .cls-silent.found   { border-color: #7fff00; background: linear-gradient(180deg, #0a3a0a, #111); box-shadow: 0 0 15px var(--color-silent); }
+        .cls-defect.found   { border-color: #00e5ff; background: linear-gradient(180deg, #0a2a4a, #111); box-shadow: 0 0 15px var(--color-defect); }
+        .cls-watcher.found  { border-color: #e0b0ff; background: linear-gradient(180deg, #3a0a4a, #111); box-shadow: 0 0 15px var(--color-watcher); }
+        .cls-common.found   { border-color: #ffffff; background: linear-gradient(180deg, #333, #111); box-shadow: 0 0 15px #666; }
+
+        /* ギブアップ時 */
+        .item.missed { border-color: #ff4444 !important; background: #200 !important; }
+        .item.missed .answer-text { color: #ff4444; }
+
+        /* コンプリートアニメーション */
+        @keyframes gold-pulse {
+            0% { box-shadow: 0 0 5px gold; }
+            50% { box-shadow: 0 0 25px gold; filter: brightness(1.2); }
+            100% { box-shadow: 0 0 5px gold; }
+        }
+        .limit-max #limitFill {
+            background: gold;
+            animation: gold-pulse 1s infinite;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="sticky-header">
+        <h2>Slay the Spire: Card Quiz</h2>
+        <div class="limit-label" id="progressPercent">0%</div> 
+        <div class="limit-gauge-outer" id="gaugeWrapper">
+            <div class="limit-gauge-bg">
+                <div id="limitFill"></div>
+            </div>
+        </div>
+        <div class="status">REMAINING: <span id="remaining">--</span> / <span id="total">--</span></div>
+        <div id="message"></div>
+        <input type="text" id="answerInput" placeholder="" autofocus autocomplete="off">
+        <button class="btn" id="giveupBtn">GIVE UP</button>
+        <button class="btn" id="retryBtn" style="display:none;">RESET RUN</button>
+    </div>
+    <div class="list" id="answerList"></div>
+</div>
+
+<script>
+    const config = {
+        placeholderNormal: "Enter Card Name...",
+        placeholderGameOver: "RUN OVER",
+        storageKey: "quiz_save_" + document.title
+    };
+
+const quizData = [
+    { display: "強打", accept: ["強打", "きょうだ"], hint: "アイアンクラッド・アタック"},
+    { display: "なぎ払い", accept: ["なぎ払い", "なぎはらい"], hint: "アイアンクラッド・アタック"},
+    { display: "アイアンウェーブ", accept: ["アイアンウェーブ", "あいあんうぇーぶ"], hint: "アイアンクラッド・アタック"},
+    { display: "クラッシュ", accept: ["クラッシュ", "くらっしゅ"], hint: "アイアンクラッド・アタック"},
+    { display: "サンダークラップ", accept: ["サンダークラップ", "さんだーくらっぷ"], hint: "アイアンクラッド・アタック"},
+    { display: "ソードブーメラン", accept: ["ソードブーメラン", "そーどぶーめらん"], hint: "アイアンクラッド・アタック"},
+    { display: "ツインストライク", accept: ["ツインストライク", "ついんすとらいく"], hint: "アイアンクラッド・アタック"},
+    { display: "パーフェクトストライク", accept: ["パーフェクトストライク", "ぱーふぇくとすとらいく"], hint: "アイアンクラッド・アタック"},
+    { display: "ヘッドバット", accept: ["ヘッドバット", "へっどばっと"], hint: "アイアンクラッド・アタック"},
+    { display: "ヘヴィブレード", accept: ["ヘヴィブレード", "へゔぃぶれーど"], hint: "アイアンクラッド・アタック"},
+    { display: "ボディスラム", accept: ["ボディスラム", "ぼでぃすらむ"], hint: "アイアンクラッド・アタック"},
+    { display: "ポンメルストライク", accept: ["ポンメルストライク", "ぽんめるすとらいく"], hint: "アイアンクラッド・アタック"},
+    { display: "ラリアット", accept: ["ラリアット", "らりあっと"], hint: "アイアンクラッド・アタック"},
+    { display: "ワイルドストライク", accept: ["ワイルドストライク", "わいるどすとらいく"], hint: "アイアンクラッド・アタック"},
+    { display: "怒り", accept: ["怒り", "いかり"], hint: "アイアンクラッド・アタック"},
+    { display: "アッパーカット", accept: ["アッパーカット", "あっぱーかっと"], hint: "アイアンクラッド・アタック"},
+    { display: "ドロップキック", accept: ["ドロップキック", "どろっぷきっく"], hint: "アイアンクラッド・アタック"},
+    { display: "ヘモキネシス", accept: ["ヘモキネシス", "へもきねしす"], hint: "アイアンクラッド・アタック"},
+    { display: "ランページ", accept: ["ランページ", "らんぺーじ"], hint: "アイアンクラッド・アタック"},
+    { display: "大虐殺", accept: ["大虐殺", "だいぎゃくさつ"], hint: "アイアンクラッド・アタック"},
+    { display: "旋風刃", accept: ["旋風刃", "せんぷうじん"], hint: "アイアンクラッド・アタック"},
+    { display: "灼熱の一撃", accept: ["灼熱の一撃", "しゃくねつのいちげき"], hint: "アイアンクラッド・アタック"},
+    { display: "無謀なる突撃", accept: ["無謀なる突撃", "むぼうなるとつげき"], hint: "アイアンクラッド・アタック"},
+    { display: "猛撃", accept: ["猛撃", "もうげき"], hint: "アイアンクラッド・アタック"},
+    { display: "血には血を", accept: ["血には血を", "ちにはちを"], hint: "アイアンクラッド・アタック"},
+    { display: "霊魂切断", accept: ["霊魂切断", "れいこんせつだん"], hint: "アイアンクラッド・アタック"},
+    { display: "捕食", accept: ["捕食", "ほしょく"], hint: "アイアンクラッド・アタック"},
+    { display: "死神", accept: ["死神", "しにがみ"], hint: "アイアンクラッド・アタック"},
+    { display: "焼身", accept: ["焼身", "しょうしん"], hint: "アイアンクラッド・アタック"},
+    { display: "脳天割り", accept: ["脳天割り", "のうてんわり"], hint: "アイアンクラッド・アタック"},
+    { display: "鬼火", accept: ["鬼火", "おにび"], hint: "アイアンクラッド・アタック"},
+    { display: "フレックス", accept: ["フレックス", "ふれっくす"], hint: "アイアンクラッド・スキル"},
+    { display: "不屈の闘志", accept: ["不屈の闘志", "ふくつのとうし"], hint: "アイアンクラッド・スキル"},
+    { display: "受け流し", accept: ["受け流し", "うけながし"], hint: "アイアンクラッド・スキル"},
+    { display: "武装", accept: ["武装", "ぶそう"], hint: "アイアンクラッド・スキル"},
+    { display: "荒廃", accept: ["荒廃", "こうはい"], hint: "アイアンクラッド・スキル"},
+    { display: "雄叫び", accept: ["雄叫び", "おたけび"], hint: "アイアンクラッド・スキル"},
+    { display: "やせ我慢", accept: ["やせ我慢", "やせがまん"], hint: "アイアンクラッド・スキル"},
+    { display: "ゴーストアーマー", accept: ["ゴーストアーマー", "ごーすとあーまー"], hint: "アイアンクラッド・スキル"},
+    { display: "セカンドウィンド", accept: ["セカンドウィンド", "せかんどういんど"], hint: "アイアンクラッド・スキル"},
+    { display: "バトルトランス", accept: ["バトルトランス", "ばとるとらんす"], hint: "アイアンクラッド・スキル"},
+    { display: "二刀流", accept: ["二刀流", "にとうりゅう"], hint: "アイアンクラッド・スキル"},
+    { display: "塹壕", accept: ["塹壕", "ざんごう"], hint: "アイアンクラッド・スキル"},
+    { display: "威嚇", accept: ["威嚇", "いかく"], hint: "アイアンクラッド・スキル"},
+    { display: "弱点発見", accept: ["弱点発見", "じゃくてんはっけん"], hint: "アイアンクラッド・スキル"},
+    { display: "激怒", accept: ["激怒", "げきど"], hint: "アイアンクラッド・スキル"},
+    { display: "武装解除", accept: ["武装解除", "ぶそうかいじょ"], hint: "アイアンクラッド・スキル"},
+    { display: "激昂", accept: ["激昂", "げきこう"], hint: "アイアンクラッド・スキル"},
+    { display: "瀉血", accept: ["瀉血", "しゃけつ"], hint: "アイアンクラッド・スキル"},
+    { display: "炎の障壁", accept: ["炎の障壁", "ほのおのしょうへき"], hint: "アイアンクラッド・スキル"},
+    { display: "焦熱の契約", accept: ["焦熱の契約", "しょうねつのけいやく"], hint: "アイアンクラッド・スキル"},
+    { display: "衝撃波", accept: ["衝撃波", "しょうげきは"], hint: "アイアンクラッド・スキル"},
+    { display: "見張り", accept: ["見張り", "みはり"], hint: "アイアンクラッド・スキル"},
+    { display: "非道の刃", accept: ["非道の刃", "ひどうのやいば"], hint: "アイアンクラッド・スキル"},
+    { display: "ダブルタップ", accept: ["ダブルタップ", "だぶるたっぷ"], hint: "アイアンクラッド・スキル"},
+    { display: "リミットブレイク", accept: ["リミットブレイク", "りみっとぶれいく"], hint: "アイアンクラッド・スキル"},
+    { display: "不動", accept: ["不動", "ふどう"], hint: "アイアンクラッド・スキル"},
+    { display: "供物", accept: ["供物", "くもつ"], hint: "アイアンクラッド・スキル"},
+    { display: "発掘", accept: ["発掘", "はっくつ"], hint: "アイアンクラッド・スキル"},
+    { display: "炎の吐息", accept: ["炎の吐息", "ほのおのといき"], hint: "アイアンクラッド・パワー"},
+    { display: "無痛", accept: ["無痛", "むつう"], hint: "アイアンクラッド・パワー"},
+    { display: "燃焼", accept: ["燃焼", "ねんしょう"], hint: "アイアンクラッド・パワー"},
+    { display: "破裂", accept: ["破裂", "はれつ"], hint: "アイアンクラッド・パワー"},
+    { display: "発火", accept: ["発火", "はっか"], hint: "アイアンクラッド・パワー"},
+    { display: "進化", accept: ["進化", "しんか"], hint: "アイアンクラッド・パワー"},
+    { display: "金属化", accept: ["金属化", "きんぞくか"], hint: "アイアンクラッド・パワー"},
+    { display: "闇の抱擁", accept: ["闇の抱擁", "やみのほうよう"], hint: "アイアンクラッド・パワー"},
+    { display: "ジャガーノート", accept: ["ジャガーノート", "じゃがーのーと"], hint: "アイアンクラッド・パワー"},
+    { display: "バリケード", accept: ["バリケード", "ばりけーど"], hint: "アイアンクラッド・パワー"},
+    { display: "堕落", accept: ["堕落", "だらく"], hint: "アイアンクラッド・パワー"},
+    { display: "悪魔化", accept: ["悪魔化", "あくまか"], hint: "アイアンクラッド・パワー"},
+    { display: "残虐", accept: ["残虐", "ざんぎゃく"], hint: "アイアンクラッド・パワー"},
+    { display: "狂戦士", accept: ["狂戦士", "きょうせんし"], hint: "アイアンクラッド・パワー"},
+    { display: "無力化", accept: ["無力化", "むりょくか"], hint: "サイレント・アタック"},
+    { display: "はやぶさ斬り", accept: ["はやぶさ斬り", "はやぶさぎり"], hint: "サイレント・アタック"},
+    { display: "スライス", accept: ["スライス", "すらいす"], hint: "サイレント・アタック"},
+    { display: "ダガースロー", accept: ["ダガースロー", "だがーすろー"], hint: "サイレント・アタック"},
+    { display: "不意打ち", accept: ["不意打ち", "ふいうち"], hint: "サイレント・アタック"},
+    { display: "五月雨ダガー", accept: ["五月雨ダガー", "さみだれだがー"], hint: "サイレント・アタック"},
+    { display: "スニーキーストライク", accept: ["スニーキーストライク", "すにーきーすとらいく"], hint: "サイレント・アタック"},
+    { display: "毒の一刺し", accept: ["毒の一刺し", "どくのひとさし"], hint: "サイレント・アタック"},
+    { display: "破滅", accept: ["破滅", "はめつ"], hint: "サイレント・アタック"},
+    { display: "飛び膝蹴り", accept: ["飛び膝蹴り", "とびひざげり"], hint: "サイレント・アタック"},
+    { display: "とどめの一撃", accept: ["とどめの一撃", "とどめのいちげき"], hint: "サイレント・アタック"},
+    { display: "ダッシュ", accept: ["ダッシュ", "だっしゅ"], hint: "サイレント・アタック"},
+    { display: "ハチの巣", accept: ["ハチの巣", "はちのす"], hint: "サイレント・アタック"},
+    { display: "ヒールフック", accept: ["ヒールフック", "ひーるふっく"], hint: "サイレント・アタック"},
+    { display: "フルアタック", accept: ["フルアタック", "ふるあたっく"], hint: "サイレント・アタック"},
+    { display: "フレシェット", accept: ["フレシェット", "ふれしぇっと"], hint: "サイレント・アタック"},
+    { display: "一撃必殺", accept: ["一撃必殺", "いちげきひっさつ"], hint: "サイレント・アタック"},
+    { display: "串刺し", accept: ["串刺し", "くしざし"], hint: "サイレント・アタック"},
+    { display: "略奪", accept: ["略奪", "りゃくだつ"], hint: "サイレント・アタック"},
+    { display: "窒息", accept: ["窒息", "ちっそく"], hint: "サイレント・アタック"},
+    { display: "終わりなき苦痛", accept: ["終わりなき苦痛", "おわりなきくつう"], hint: "サイレント・アタック"},
+    { display: "腹裂き", accept: ["腹裂き", "はらさき"], hint: "サイレント・アタック"},
+    { display: "騙し討ち", accept: ["騙し討ち", "だましうち"], hint: "サイレント・アタック"},
+    { display: "アンロード", accept: ["アンロード", "あんろーど"], hint: "サイレント・アタック"},
+    { display: "ガラスのナイフ", accept: ["ガラスのナイフ", "がらすのないふ"], hint: "サイレント・アタック"},
+    { display: "グランドフィナーレ", accept: ["グランドフィナーレ", "ぐらんどふぃなーれ"], hint: "サイレント・アタック"},
+    { display: "ダイ、ダイ、ダイ！", accept: ["ダイ、ダイ、ダイ！", "だいだいだい"], hint: "サイレント・アタック"},
+    { display: "サバイバー", accept: ["サバイバー", "さばいばー"], hint: "サイレント・スキル"},
+    { display: "アクロバット", accept: ["アクロバット", "あくろばっと"], hint: "サイレント・スキル"},
+    { display: "ディフレクト", accept: ["ディフレクト", "でぃふれくと"], hint: "サイレント・スキル"},
+    { display: "ドッジロール", accept: ["ドッジロール", "どっじろーる"], hint: "サイレント・スキル"},
+    { display: "バックフリップ", accept: ["バックフリップ", "ばっくふりっぷ"], hint: "サイレント・スキル"},
+    { display: "先読み", accept: ["先読み", "さきよみ"], hint: "サイレント・スキル"},
+    { display: "剣の舞", accept: ["剣の舞", "つるぎのまい"], hint: "サイレント・スキル"},
+    { display: "外套と短剣", accept: ["外套と短剣", "がいとうとたんけん"], hint: "サイレント・スキル"},
+    { display: "準備", accept: ["準備", "じゅんび"], hint: "サイレント・スキル"},
+    { display: "致死毒", accept: ["致死毒", "ちしどく"], hint: "サイレント・スキル"},
+    { display: "金切り声", accept: ["金切り声", "かなきりごえ"], hint: "サイレント・スキル"},
+    { display: "イカサマ", accept: ["イカサマ", "いかさま"], hint: "サイレント・スキル"},
+    { display: "セットアップ", accept: ["セットアップ", "せっとあっぷ"], hint: "サイレント・スキル"},
+    { display: "バウンドフラスコ", accept: ["バウンドフラスコ", "ばうんどふらすこ"], hint: "サイレント・スキル"},
+    { display: "劇毒", accept: ["劇毒", "げきどく"], hint: "サイレント・スキル"},
+    { display: "動揺", accept: ["動揺", "どうよう"], hint: "サイレント・スキル"},
+    { display: "反射", accept: ["反射", "はんしゃ"], hint: "サイレント・スキル"},
+    { display: "恐怖", accept: ["恐怖", "きょうふ"], hint: "サイレント・スキル"},
+    { display: "策士", accept: ["策士", "さくし"], hint: "サイレント・スキル"},
+    { display: "職人技", accept: ["職人技", "しょくにんわざ"], hint: "サイレント・スキル"},
+    { display: "脱出計画", accept: ["脱出計画", "だっしゅつけいかく"], hint: "サイレント・スキル"},
+    { display: "触媒", accept: ["触媒", "しょくばい"], hint: "サイレント・スキル"},
+    { display: "足払い", accept: ["足払い", "あしばらい"], hint: "サイレント・スキル"},
+    { display: "集中", accept: ["集中", "しゅうちゅう"], hint: "サイレント・スキル"},
+    { display: "ブラー", accept: ["ブラー", "ぶらー"], hint: "サイレント・スキル"},
+    { display: "アドレナリン", accept: ["アドレナリン", "あどれなりん"], hint: "サイレント・スキル"},
+    { display: "ドッペルゲンガー", accept: ["ドッペルゲンガー", "どっぺるげんがー"], hint: "サイレント・スキル"},
+    { display: "バレットタイム", accept: ["バレットタイム", "ばれっとたいむ"], hint: "サイレント・スキル"},
+    { display: "バースト", accept: ["バースト", "ばーすと"], hint: "サイレント・スキル"},
+    { display: "不快感", accept: ["不快感", "ふかいかん"], hint: "サイレント・スキル"},
+    { display: "幻影の暗殺者", accept: ["幻影の暗殺者", "げんえいのあんさつしゃ"], hint: "サイレント・スキル"},
+    { display: "悪夢", accept: ["悪夢", "あくむ"], hint: "サイレント・スキル"},
+    { display: "死体爆破", accept: ["死体爆破", "したいばくは"], hint: "サイレント・スキル"},
+    { display: "鋼の嵐", accept: ["鋼の嵐", "はがねのあらし"], hint: "サイレント・スキル"},
+    { display: "錬金術", accept: ["錬金術", "れんきんじゅつ"], hint: "サイレント・スキル"},
+    { display: "まきびし", accept: ["まきびし", "まきびし"], hint: "サイレント・パワー"},
+    { display: "フットワーク", accept: ["フットワーク", "ふっとわーく"], hint: "サイレント・パワー"},
+    { display: "有毒ガス", accept: ["有毒ガス", "ゆうどくがす"], hint: "サイレント・パワー"},
+    { display: "無限の刃", accept: ["無限の刃", "むげんのやいば"], hint: "サイレント・パワー"},
+    { display: "用意周到", accept: ["用意周到", "よういしゅうとう"], hint: "サイレント・パワー"},
+    { display: "精度上昇", accept: ["精度上昇", "せいどじょうしょう"], hint: "サイレント・パワー"},
+    { display: "メッタ切り", accept: ["メッタ切り", "めったぎり"], hint: "サイレント・パワー"},
+    { display: "商売道具", accept: ["商売道具", "しょうばいどうぐ"], hint: "サイレント・パワー"},
+    { display: "死霊化", accept: ["死霊化", "しりょうか"], hint: "サイレント・パワー"},
+    { display: "残像", accept: ["残像", "ざんぞう"], hint: "サイレント・パワー"},
+    { display: "猛毒の仕込み", accept: ["猛毒の仕込み", "もうどくのしこみ"], hint: "サイレント・パワー"},
+    { display: "コンパイル・ドライバ", accept: ["コンパイル・ドライバ", "こんぱいるどらいば"], hint: "ディフェクト・アタック"},
+    { display: "ビームセル", accept: ["ビームセル", "びーむせる"], hint: "ディフェクト・アタック"},
+    { display: "ビーム一掃", accept: ["ビーム一掃", "びーむいっそう"], hint: "ディフェクト・アタック"},
+    { display: "ボールライトニング", accept: ["ボールライトニング", "ぼーるらいとにんぐ"], hint: "ディフェクト・アタック"},
+    { display: "リバウンド", accept: ["リバウンド", "りばうんど"], hint: "ディフェクト・アタック"},
+    { display: "効率化", accept: ["効率化", "こうりつか"], hint: "ディフェクト・アタック"},
+    { display: "寒波", accept: ["寒波", "かんぱ"], hint: "ディフェクト・アタック"},
+    { display: "爪", accept: ["爪", "つめ"], hint: "ディフェクト・アタック"},
+    { display: "目潰し", accept: ["目潰し", "めつぶし"], hint: "ディフェクト・アタック"},
+    { display: "集中砲火", accept: ["集中砲火", "しゅうちゅうほうか"], hint: "ディフェクト・アタック"},
+    { display: "FTL", accept: ["FTL","ＦＬＴ", "えふてぃーえる"], hint: "ディフェクト・アタック"},
+    { display: "スクレイプ", accept: ["スクレイプ", "すくれいぷ"], hint: "ディフェクト・アタック"},
+    { display: "ブリザード", accept: ["ブリザード", "ぶりざーど"], hint: "ディフェクト・アタック"},
+    { display: "ブルズアイ", accept: ["ブルズアイ", "ぶるずあい"], hint: "ディフェクト・アタック"},
+    { display: "切断", accept: ["切断", "せつだん"], hint: "ディフェクト・アタック"},
+    { display: "溶解炉", accept: ["溶解炉", "ようかいろ"], hint: "ディフェクト・アタック"},
+    { display: "狂奔", accept: ["狂奔", "きょうほん"], hint: "ディフェクト・アタック"},
+    { display: "自暴自棄", accept: ["自暴自棄", "じぼうじき"], hint: "ディフェクト・アタック"},
+    { display: "オールフォーワン", accept: ["オールフォーワン", "おーるふぉーわん"], hint: "ディフェクト・アタック"},
+    { display: "コアサージ", accept: ["コアサージ", "こあさーじ"], hint: "ディフェクト・アタック"},
+    { display: "サンダーストライク", accept: ["サンダーストライク", "さんだーすとらいく"], hint: "ディフェクト・アタック"},
+    { display: "ハイパービーム", accept: ["ハイパービーム", "はいぱーびーむ"], hint: "ディフェクト・アタック"},
+    { display: "メテオストライク", accept: ["メテオストライク", "めておすとらいく"], hint: "ディフェクト・アタック"},
+    { display: "ザップ", accept: ["ザップ", "ざっぷ"], hint: "ディフェクト・スキル"},
+    { display: "デュアルキャスト", accept: ["デュアルキャスト", "でゅあるきゃすと"], hint: "ディフェクト・スキル"},
+    { display: "スタック", accept: ["スタック", "すたっく"], hint: "ディフェクト・スキル"},
+    { display: "スチームバリア", accept: ["スチームバリア", "すちーむばりあ"], hint: "ディフェクト・スキル"},
+    { display: "ホログラム", accept: ["ホログラム", "ほろぐらむ"], hint: "ディフェクト・スキル"},
+    { display: "冷静沈着", accept: ["冷静沈着", "れいせいちんちゃく"], hint: "ディフェクト・スキル"},
+    { display: "加速！", accept: ["加速！","加速!", "かそく"], hint: "ディフェクト・スキル"},
+    { display: "再帰", accept: ["再帰", "さいき"], hint: "ディフェクト・スキル"},
+    { display: "充電", accept: ["充電", "じゅうでん"], hint: "ディフェクト・スキル"},
+    { display: "跳躍", accept: ["跳躍", "ちょうやく"], hint: "ディフェクト・スキル"},
+    { display: "オーバークロック", accept: ["オーバークロック", "おーばーくろっく"], hint: "ディフェクト・スキル"},
+    { display: "スキム", accept: ["スキム", "すきむ"], hint: "ディフェクト・スキル"},
+    { display: "ダブルエナジー", accept: ["ダブルエナジー", "だぶるえなじー"], hint: "ディフェクト・スキル"},
+    { display: "テンペスト", accept: ["テンペスト", "てんぺすと"], hint: "ディフェクト・スキル"},
+    { display: "フォースフィールド", accept: ["フォースフィールド", "ふぉーすふぃーるど"], hint: "ディフェクト・スキル"},
+    { display: "ホワイトノイズ", accept: ["ホワイトノイズ", "ほわいとのいず"], hint: "ディフェクト・スキル"},
+    { display: "リサイクル", accept: ["リサイクル", "りさいくる"], hint: "ディフェクト・スキル"},
+    { display: "再構成", accept: ["再構成", "さいこうせい"], hint: "ディフェクト・スキル"},
+    { display: "均衡", accept: ["均衡", "きんこう"], hint: "ディフェクト・スキル"},
+    { display: "寒気", accept: ["寒気", "かんき"], hint: "ディフェクト・スキル"},
+    { display: "強化ボディ", accept: ["強化ボディ", "きょうかぼでぃ"], hint: "ディフェクト・スキル"},
+    { display: "暗黒", accept: ["暗黒", "あんこく"], hint: "ディフェクト・スキル"},
+    { display: "氷河", accept: ["氷河", "ひょうが"], hint: "ディフェクト・スキル"},
+    { display: "消尽", accept: ["消尽", "しょうじん"], hint: "ディフェクト・スキル"},
+    { display: "混沌", accept: ["混沌", "こんとん"], hint: "ディフェクト・スキル"},
+    { display: "自動防御盾", accept: ["自動防御盾", "じどうぼうぎょたて"], hint: "ディフェクト・スキル"},
+    { display: "融合", accept: ["融合", "ゆうごう"], hint: "ディフェクト・スキル"},
+    { display: "起動シーケンス", accept: ["起動シーケンス", "きどうしーけんす"], hint: "ディフェクト・スキル"},
+    { display: "遺伝的アルゴリズム", accept: ["遺伝的アルゴリズム", "いでんてきあるごりずむ"], hint: "ディフェクト・スキル"},
+    { display: "集計", accept: ["集計", "しゅうけい"], hint: "ディフェクト・スキル"},
+    { display: "マルチキャスト", accept: ["マルチキャスト", "まるちきゃすと"], hint: "ディフェクト・スキル"},
+    { display: "レインボー", accept: ["レインボー", "れいんぼー"], hint: "ディフェクト・スキル"},
+    { display: "再起動", accept: ["再起動", "さいきどう"], hint: "ディフェクト・スキル"},
+    { display: "増幅", accept: ["増幅", "ぞうふく"], hint: "ディフェクト・スキル"},
+    { display: "核分裂", accept: ["核分裂", "かくぶんれつ"], hint: "ディフェクト・スキル"},
+    { display: "検索", accept: ["検索", "けんさく"], hint: "ディフェクト・スキル"},
+    { display: "コンデンサ", accept: ["コンデンサ", "こんでんさ"], hint: "ディフェクト・パワー"},
+    { display: "ハロー・ワールド", accept: ["ハロー・ワールド", "はろーわーるど"], hint: "ディフェクト・パワー"},
+    { display: "デフラグ", accept: ["デフラグ", "でふらぐ"], hint: "ディフェクト・パワー"},
+    { display: "ヒートシンク", accept: ["ヒートシンク", "ひーとしんく"], hint: "ディフェクト・パワー"},
+    { display: "ループ", accept: ["ループ", "るーぷ"], hint: "ディフェクト・パワー"},
+    { display: "ストーム", accept: ["ストーム", "すとーむ"], hint: "ディフェクト・パワー"},
+    { display: "自己修復", accept: ["自己修復", "じこしゅうふく"], hint: "ディフェクト・パワー"},
+    { display: "静電放電", accept: ["静電放電", "せいでんほうでん"], hint: "ディフェクト・パワー"},
+    { display: "クリエイティブAI", accept: ["クリエイティブAI","クリエイティブＡＩ", "くりえいてぃぶあい"], hint: "ディフェクト・パワー"},
+    { display: "バッファー", accept: ["バッファー", "ばっふぁー"], hint: "ディフェクト・パワー"},
+    { display: "電気力学", accept: ["電気力学", "でんきりきがく"], hint: "ディフェクト・パワー"},
+    { display: "反響化", accept: ["反響化", "はんきょうか"], hint: "ディフェクト・パワー"},
+    { display: "機械学習", accept: ["機械学習", "きかいがくしゅう"], hint: "ディフェクト・パワー"},
+    { display: "認知偏向", accept: ["認知偏向", "にんちへんこう"], hint: "ディフェクト・パワー"},
+    { display: "噴火", accept: ["噴火", "ふんか"], hint: "ウォッチャー・アタック"},
+    { display: "ただの幸運", accept: ["ただの幸運", "ただのこううん"], hint: "ウォッチャー・アタック"},
+    { display: "ボウリングバッシュ", accept: ["ボウリングバッシュ", "ぼうりんぐばっしゅ"], hint: "ウォッチャー・アタック"},
+    { display: "無の型:拳", accept: ["無の型:拳","無の型：拳", "むのかたこぶし"], hint: "ウォッチャー・アタック"},
+    { display: "聖別", accept: ["聖別", "せいべつ"], hint: "ウォッチャー・アタック"},
+    { display: "舞い飛ぶ袖", accept: ["舞い飛ぶ袖", "まいとぶそで"], hint: "ウォッチャー・アタック"},
+    { display: "追撃", accept: ["追撃", "ついげき"], hint: "ウォッチャー・アタック"},
+    { display: "連打", accept: ["連打", "れんだ"], hint: "ウォッチャー・アタック"},
+    { display: "運命の切り開き", accept: ["運命の切り開き", "うんめいのきりひらき"], hint: "ウォッチャー・アタック"},
+    { display: "関節破壊", accept: ["関節破壊", "かんせつはかい"], hint: "ウォッチャー・アタック"},
+    { display: "鞭打つ帯", accept: ["鞭打つ帯", "むちうつおび"], hint: "ウォッチャー・アタック"},
+    { display: "かんしゃく", accept: ["かんしゃく", "かんしゃく"], hint: "ウォッチャー・アタック"},
+    { display: "ぶん殴り", accept: ["ぶん殴り", "ぶんなぐり"], hint: "ウォッチャー・アタック"},
+    { display: "ウィンドストライク", accept: ["ウィンドストライク", "ういんどすとらいく"], hint: "ウォッチャー・アタック"},
+    { display: "フィニッシュブロー", accept: ["フィニッシュブロー", "ふぃにっしゅぶろー"], hint: "ウォッチャー・アタック"},
+    { display: "刻まれた現実", accept: ["刻まれた現実", "きざまれたげんじつ"], hint: "ウォッチャー・アタック"},
+    { display: "刻一刻", accept: ["刻一刻", "こくいっこく"], hint: "ウォッチャー・アタック"},
+    { display: "回し蹴り", accept: ["回し蹴り", "まわしげり"], hint: "ウォッチャー・アタック"},
+    { display: "悪しきを恐れず", accept: ["悪しきを恐れず", "あしきをおそれず"], hint: "ウォッチャー・アタック"},
+    { display: "拒絶の掌", accept: ["拒絶の掌", "きょぜつのてのひら"], hint: "ウォッチャー・アタック"},
+    { display: "昇天", accept: ["昇天", "しょうてん"], hint: "ウォッチャー・アタック"},
+    { display: "終結", accept: ["終結", "しゅうけつ"], hint: "ウォッチャー・アタック"},
+    { display: "編み上げ", accept: ["編み上げ", "あみあげ"], hint: "ウォッチャー・アタック"},
+    { display: "ラグナロク", accept: ["ラグナロク", "らぐなろく"], hint: "ウォッチャー・アタック"},
+    { display: "光輝", accept: ["光輝", "こうき"], hint: "ウォッチャー・アタック"},
+    { display: "得られた教訓", accept: ["得られた教訓", "えられたきょうくん"], hint: "ウォッチャー・アタック"},
+    { display: "警戒", accept: ["警戒", "けいかい"], hint: "ウォッチャー・スキル"},
+    { display: "停止", accept: ["停止", "ていし"], hint: "ウォッチャー・スキル"},
+    { display: "安らぎ", accept: ["安らぎ", "やすらぎ"], hint: "ウォッチャー・スキル"},
+    { display: "昂揚", accept: ["昂揚", "こうよう"], hint: "ウォッチャー・スキル"},
+    { display: "無の型:体", accept: ["無の型:体","無の型：体", "むのかたからだ"], hint: "ウォッチャー・スキル"},
+    { display: "第三の目", accept: ["第三の目", "だいさんのめ"], hint: "ウォッチャー・スキル"},
+    { display: "経絡秘孔", accept: ["経絡秘孔", "けいらくひこう"], hint: "ウォッチャー・スキル"},
+    { display: "評価", accept: ["評価", "ひょうか"], hint: "ウォッチャー・スキル"},
+    { display: "護身", accept: ["護身", "ごしん"], hint: "ウォッチャー・スキル"},
+    { display: "頂礼", accept: ["頂礼", "ちょうらい"], hint: "ウォッチャー・スキル"},
+    { display: "一触即発", accept: ["一触即発", "いっしょくそくはつ"], hint: "ウォッチャー・スキル"},
+    { display: "内なる平穏", accept: ["内なる平穏", "うちなるへいおん"], hint: "ウォッチャー・スキル"},
+    { display: "収穫", accept: ["収穫", "しゅうかく"], hint: "ウォッチャー・スキル"},
+    { display: "外的影響", accept: ["外的影響", "がいてきえいきょう"], hint: "ウォッチャー・スキル"},
+    { display: "崇拝", accept: ["崇拝", "すうはい"], hint: "ウォッチャー・スキル"},
+    { display: "忍耐", accept: ["忍耐", "にんたい"], hint: "ウォッチャー・スキル"},
+    { display: "憤慨", accept: ["憤慨", "ふんがい"], hint: "ウォッチャー・スキル"},
+    { display: "揺れ動く手", accept: ["揺れ動く手", "ゆれうごくて"], hint: "ウォッチャー・スキル"},
+    { display: "旋転回避", accept: ["旋転回避", "せんてんかいひ"], hint: "ウォッチャー・スキル"},
+    { display: "欺かれた現実", accept: ["欺かれた現実", "あざむかれたげんじつ"], hint: "ウォッチャー・スキル"},
+    { display: "無の型:心", accept: ["無の型:心","無の型：心", "むのかたこころ"], hint: "ウォッチャー・スキル"},
+    { display: "瞑想", accept: ["瞑想", "めいそう"], hint: "ウォッチャー・スキル"},
+    { display: "祈り", accept: ["祈り", "いのり"], hint: "ウォッチャー・スキル"},
+    { display: "華炎輪", accept: ["華炎輪", "かえんりん"], hint: "ウォッチャー・スキル"},
+    { display: "高潔", accept: ["高潔", "こうけつ"], hint: "ウォッチャー・スキル"},
+    { display: "アルファ", accept: ["アルファ", "あるふぁ"], hint: "ウォッチャー・スキル"},
+    { display: "デウス・エクス・マキナ", accept: ["デウス・エクス・マキナ", "でうすえくすまきな"], hint: "ウォッチャー・スキル"},
+    { display: "全知", accept: ["全知", "ぜんち"], hint: "ウォッチャー・スキル"},
+    { display: "冒涜", accept: ["冒涜", "ぼうとく"], hint: "ウォッチャー・スキル"},
+    { display: "剣の召喚", accept: ["剣の召喚", "つるぎのしょうかん"], hint: "ウォッチャー・スキル"},
+    { display: "審判", accept: ["審判", "しんぱん"], hint: "ウォッチャー・スキル"},
+    { display: "精神障壁", accept: ["精神障壁", "せいしんしょうへき"], hint: "ウォッチャー・スキル"},
+    { display: "走り書き", accept: ["走り書き", "はしりがき"], hint: "ウォッチャー・スキル"},
+    { display: "願いごと", accept: ["願いごと", "ねがいごと"], hint: "ウォッチャー・スキル"},
+    { display: "飛び越え", accept: ["飛び越え", "とびこえ"], hint: "ウォッチャー・スキル"},
+    { display: "不動心", accept: ["不動心", "ふどうしん"], hint: "ウォッチャー・パワー"},
+    { display: "先見の明", accept: ["先見の明", "せんけんのめい"], hint: "ウォッチャー・パワー"},
+    { display: "学習", accept: ["学習", "がくしゅう"], hint: "ウォッチャー・パワー"},
+    { display: "戦いの賛歌", accept: ["戦いの賛歌", "たたかいのさんか"], hint: "ウォッチャー・パワー"},
+    { display: "断食", accept: ["断食", "だんじき"], hint: "ウォッチャー・パワー"},
+    { display: "水の如し", accept: ["水の如し", "みずのごとし"], hint: "ウォッチャー・パワー"},
+    { display: "涅槃", accept: ["涅槃", "ねはん"], hint: "ウォッチャー・パワー"},
+    { display: "猪突猛進", accept: ["猪突猛進", "ちょとつもうしん"], hint: "ウォッチャー・パワー"},
+    { display: "信心", accept: ["信心", "しんじん"], hint: "ウォッチャー・パワー"},
+    { display: "制定", accept: ["制定", "せいてい"], hint: "ウォッチャー・パワー"},
+    { display: "掌握した現実", accept: ["掌握した現実", "しょうあくしたげんじつ"], hint: "ウォッチャー・パワー"},
+    { display: "神人化", accept: ["神人化", "しんじんか"], hint: "ウォッチャー・パワー"},
+    { display: "ストライク", accept: ["ストライク", "すとらいく"], hint: "共通・アタック"},
+    { display: "ナイフ", accept: ["ナイフ", "ないふ"], hint: "共通・アタック"},
+    { display: "儀式の短剣", accept: ["儀式の短剣", "ぎしきのたんけん"], hint: "共通・アタック"},
+    { display: "噛みつき", accept: ["噛みつき", "かみつき"], hint: "共通・アタック"},
+    { display: "スマイト", accept: ["スマイト", "すまいと"], hint: "共通・アタック"},
+    { display: "抹殺の剣", accept: ["抹殺の剣", "まっさつのつるぎ"], hint: "共通・アタック"},
+    { display: "蹂躙", accept: ["蹂躙", "じゅうりん"], hint: "共通・アタック"},
+    { display: "スイフトストライク", accept: ["スイフトストライク", "すいふとすとらいく"], hint: "共通・アタック"},
+    { display: "マインドブラスト", accept: ["マインドブラスト", "まいんどぶらすと"], hint: "共通・アタック"},
+    { display: "剣の一閃", accept: ["剣の一閃", "けんのいっせん"], hint: "共通・アタック"},
+    { display: "劇的な入場", accept: ["劇的な入場", "げきてきなにゅうじょう"], hint: "共通・アタック"},
+    { display: "強欲の手", accept: ["強欲の手", "ごうよくのて"], hint: "共通・アタック"},
+    { display: "防御", accept: ["防御", "ぼうぎょ"], hint: "共通・スキル"},
+    { display: "J.A.X.", accept: ["J.A.X.","Ｊ．Ａ．Ｘ．", "じゃっくす"], hint: "共通・スキル"},
+    { display: "ベータ", accept: ["ベータ", "べーた"], hint: "共通・スキル"},
+    { display: "奇跡", accept: ["奇跡", "きせき"], hint: "共通・スキル"},
+    { display: "富と名声", accept: ["富と名声", "ととめいせい"], hint: "共通・スキル"},
+    { display: "幻姿", accept: ["幻姿", "げんし"], hint: "共通・スキル"},
+    { display: "洞察", accept: ["洞察", "どうさつ"], hint: "共通・スキル"},
+    { display: "退避", accept: ["退避", "たいひ"], hint: "共通・スキル"},
+    { display: "つまずき", accept: ["つまずき", "つまずき"], hint: "共通・スキル"},
+    { display: "よろず屋", accept: ["よろず屋", "よろずや"], hint: "共通・スキル"},
+    { display: "万能薬", accept: ["万能薬", "ばんのうやく"], hint: "共通・スキル"},
+    { display: "用心", accept: ["用心", "ようじん"], hint: "共通・スキル"},
+    { display: "包帯", accept: ["包帯", "ほうたい"], hint: "共通・スキル"},
+    { display: "啓発", accept: ["啓発", "けいはつ"], hint: "共通・スキル"},
+    { display: "技巧", accept: ["技巧", "ぎきょう"], hint: "共通・スキル"},
+    { display: "深呼吸", accept: ["深呼吸", "しんこきゅう"], hint: "共通・スキル"},
+    { display: "焦燥", accept: ["焦燥", "しょうそう"], hint: "共通・スキル"},
+    { display: "狂気", accept: ["狂気", "きょうき"], hint: "共通・スキル"},
+    { display: "目くらまし", accept: ["目くらまし", "めくらまし"], hint: "共通・スキル"},
+    { display: "発見", accept: ["発見", "はっけん"], hint: "共通・スキル"},
+    { display: "直感", accept: ["直感", "ちょっかん"], hint: "共通・スキル"},
+    { display: "祓い清め", accept: ["祓い清め", "はらいきよめ"], hint: "共通・スキル"},
+    { display: "闇の足枷", accept: ["闇の足枷", "やみのあしかせ"], hint: "共通・スキル"},
+    { display: "非常ボタン", accept: ["非常ボタン", "ひじょうぼたん"], hint: "共通・スキル"},
+    { display: "サナギ", accept: ["サナギ", "さなぎ"], hint: "共通・スキル"},
+    { display: "シークレットウェポン", accept: ["シークレットウェポン", "しーくれっとうえぽん"], hint: "共通・スキル"},
+    { display: "シークレットテクニック", accept: ["シークレットテクニック", "しーくれっとてくにっく"], hint: "共通・スキル"},
+    { display: "羽化", accept: ["羽化", "うか"], hint: "共通・スキル"},
+    { display: "予測", accept: ["予測", "よそく"], hint: "共通・スキル"},
+    { display: "変異", accept: ["変異", "へんい"], hint: "共通・スキル"},
+    { display: "戦略家", accept: ["戦略家", "せんりゃくか"], hint: "共通・スキル"},
+    { display: "暴力", accept: ["暴力", "ぼうりょく"], hint: "共通・スキル"},
+    { display: "爆弾", accept: ["爆弾", "ばくだん"], hint: "共通・スキル"},
+    { display: "神格化", accept: ["神格化", "しんかくか"], hint: "共通・スキル"},
+    { display: "オメガ", accept: ["オメガ", "おめが"], hint: "共通・パワー"},
+    { display: "不死", accept: ["不死", "ふし"], hint: "共通・パワー"},
+    { display: "完全無欠", accept: ["完全無欠", "かんぜんむけつ"], hint: "共通・パワー"},
+    { display: "加虐性", accept: ["加虐性", "かぎゃくせい"], hint: "共通・パワー"},
+    { display: "威風堂々", accept: ["威風堂々", "いふうどうどう"], hint: "共通・パワー"},
+    { display: "磁性", accept: ["磁性", "じせい"], hint: "共通・パワー"},
+    { display: "騒乱", accept: ["騒乱", "そうらん"], hint: "共通・パワー"},
+    { display: "負傷", accept: ["負傷", "ふしょう"], hint: "状態異常"},
+    { display: "粘液", accept: ["粘液", "ねんえき"], hint: "状態異常"},
+    { display: "空虚", accept: ["空虚", "くうきょ"], hint: "状態異常"},
+    { display: "火傷", accept: ["火傷", "やけど"], hint: "状態異常"},
+    { display: "めまい", accept: ["めまい", "めまい"], hint: "状態異常"},
+    { display: "不器用", accept: ["不器用", "ぶきよう"], hint: "呪い"},
+    { display: "寄生", accept: ["寄生", "きせい"], hint: "呪い"},
+    { display: "凡庸", accept: ["凡庸", "ぼんよう"], hint: "呪い"},
+    { display: "後悔", accept: ["後悔", "こうかい"], hint: "呪い"},
+    { display: "怪我", accept: ["怪我", "けが"], hint: "呪い"},
+    { display: "死霊の呪い", accept: ["死霊の呪い", "しりょうののろい"], hint: "呪い"},
+    { display: "疑念", accept: ["疑念", "ぎねん"], hint: "呪い"},
+    { display: "痛み", accept: ["痛み", "いたみ"], hint: "呪い"},
+    { display: "羞恥", accept: ["羞恥", "しゅうち"], hint: "呪い"},
+    { display: "腐敗", accept: ["腐敗", "ふはい"], hint: "呪い"},
+    { display: "苦悩", accept: ["苦悩", "くのう"], hint: "呪い"},
+    { display: "アセンダーの災厄", accept: ["アセンダーの災厄", "あせんだーのさいやく"], hint: "呪い"},
+    { display: "傲慢", accept: ["傲慢", "ごうまん"], hint: "呪い"},
+    { display: "鐘の呪い", accept: ["鐘の呪い", "かねののろい"], hint: "呪い"},
+];
+
+    let foundCount = 0;
+    let isGameOver = false;
+    let answeredIndices = new Set();
+
+    const input = document.getElementById('answerInput');
+    const remainingText = document.getElementById('remaining');
+    const totalText = document.getElementById('total');
+    const listContainer = document.getElementById('answerList');
+    const messageEl = document.getElementById('message');
+    const giveupBtn = document.getElementById('giveupBtn');
+    const retryBtn = document.getElementById('retryBtn');
+    const limitFill = document.getElementById('limitFill');
+    const gaugeWrapper = document.getElementById('gaugeWrapper');
+
+    // ヒントからクラス名を判定する関数
+    function getClassByHint(hint) {
+        if (hint.includes("アイアンクラッド")) return "cls-ironclad";
+        if (hint.includes("サイレント")) return "cls-silent";
+        if (hint.includes("ディフェクト")) return "cls-defect";
+        if (hint.includes("ウォッチャー")) return "cls-watcher";
+        return "cls-common";
+    }
+
+    function updateLimitGauge() {
+        const percent = Math.floor((foundCount / quizData.length) * 100);
+        if(limitFill) limitFill.style.width = percent + "%";
+        const percentDisplay = document.getElementById('progressPercent');
+        if (percentDisplay) {
+            percentDisplay.textContent = (foundCount === quizData.length) ? "VICTORY!" : percent + "%";
+        }
+        if (foundCount === quizData.length && quizData.length > 0) {
+            gaugeWrapper.classList.add('limit-max');
+        } else {
+            gaugeWrapper.classList.remove('limit-max');
+        }
+    }
+
+    function init() {
+        foundCount = 0;
+        isGameOver = false;
+        answeredIndices.clear();
+        listContainer.innerHTML = '';
+        input.disabled = false;
+        input.value = '';
+        input.placeholder = config.placeholderNormal;
+        giveupBtn.style.display = 'inline-block';
+        retryBtn.style.display = 'none';
+        remainingText.textContent = quizData.length;
+        totalText.textContent = quizData.length;
+        messageEl.textContent = '';
+
+        quizData.forEach((item, index) => {
+            const div = document.createElement('div');
+            // ここで判定クラスを付与
+            const colorCls = getClassByHint(item.hint);
+            div.className = `item ${colorCls}`;
+            div.id = 'target-' + index;
+            div.innerHTML = `<div class="hint-text">${item.hint}</div><div class="answer-text">???</div>`;
+            listContainer.appendChild(div);
+        });
+
+        loadProgress();
+        updateLimitGauge();
+    }
+
+    function loadProgress() {
+        const savedData = localStorage.getItem(config.storageKey);
+        if (savedData) {
+            const savedIndices = JSON.parse(savedData);
+            savedIndices.forEach(index => {
+                if (index < quizData.length) {
+                    answeredIndices.add(index);
+                    updateItemDisplay(index, true, false); // ロード時はスクロールさせない
+                    foundCount++;
+                }
+            });
+            remainingText.textContent = quizData.length - foundCount;
+            if (foundCount > 0) showMessage("データをロードしました", "#8c7851");
+            if (foundCount === quizData.length) finishGame("ALL CARDS COLLECTED", "gold");
+        }
+        updateLimitGauge();
+    }
+
+    function saveProgress() {
+        localStorage.setItem(config.storageKey, JSON.stringify(Array.from(answeredIndices)));
+    }
+
+    function clearProgress() {
+        localStorage.removeItem(config.storageKey);
+    }
+
+    input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !isGameOver) {
+            const val = input.value.trim();
+            if (val === "") return;
+            let targetIndex = quizData.findIndex(item => item.accept.includes(val));
+
+            if (targetIndex !== -1) {
+                if (answeredIndices.has(targetIndex)) {
+                    showMessage("回答済みです", "#8c7851");
+                    document.getElementById('target-' + targetIndex).scrollIntoView({ behavior: 'smooth', block: 'center' });
+                } else {
+                    answeredIndices.add(targetIndex);
+                    updateItemDisplay(targetIndex, true, true);
+                    foundCount++;
+                    remainingText.textContent = quizData.length - foundCount;
+                    showMessage("正解！", "#7fff00");
+                    saveProgress();
+                    updateLimitGauge();
+                    if (foundCount === quizData.length) finishGame("VICTORY!", "gold");
+                }
+            } else {
+                showMessage("対象が存在しません", "#ff4444");
+            }
+            input.value = '';
+        }
+    });
+
+    function updateItemDisplay(index, isCorrect, shouldScroll) {
+        const targetEl = document.getElementById('target-' + index);
+        const data = quizData[index];
+        targetEl.innerHTML = `
+            <div class="hint-text">${data.hint}</div>
+            <div class="answer-text">${data.display}</div>
+        `;
+        
+        if (isCorrect) {
+            targetEl.classList.add('found');
+            if (shouldScroll) {
+                targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        } else {
+            targetEl.classList.add('missed');
+        }
+    }
+
+    giveupBtn.addEventListener('click', () => {
+        revealAllAnswers();
+        finishGame("RUN OVER", "#ff4444");
+    });
+
+    retryBtn.addEventListener('click', () => {
+        if(confirm("全ての記録を抹消してリスタートしますか？")) {
+            clearProgress();
+            init();
+        }
+    });
+
+    function revealAllAnswers() {
+        quizData.forEach((item, index) => {
+            if (!answeredIndices.has(index)) {
+                updateItemDisplay(index, false, false);
+            }
+        });
+    }
+
+    function finishGame(msg, color) {
+        isGameOver = true;
+        input.disabled = true;
+        input.placeholder = config.placeholderGameOver;
+        giveupBtn.style.display = 'none';
+        retryBtn.style.display = 'inline-block';
+        showMessage(msg, color);
+    }
+
+    function showMessage(text, color) {
+        messageEl.textContent = text;
+        messageEl.style.color = color;
+        if (!isGameOver) {
+            setTimeout(() => { if (messageEl.textContent === text) messageEl.textContent = ""; }, 1500);
+        }
+    }
+
+    init();
+</script>
+</body>
+</html>
