@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>ポケモンの分類いえるかな（BW～）</title>
+    <style>
+        /* --- デザイン変数（パステルカラー） --- */
+        :root {
+            --poke-red: #ff9999;     /* 優しいパステル赤 */
+            --poke-white: #fefefe;
+            --poke-gray: #e0e0e0;
+            --poke-blue: #a2d2ff;    /* パステルブルー */
+            --poke-green: #bde0fe;   /* ゲージ用 */
+            --exp-green: #78c850;    /* 経験値バー風 */
+            --text-main: #555555;
+        }
+
+        /* --- 全体レイアウト --- */
+        body { 
+            font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif; 
+            text-align: center; 
+            padding: 0; 
+            background: linear-gradient(135deg, #fdfcfb 0%, #e2d1c3 100%);
+            background-attachment: fixed; 
+            color: var(--text-main); 
+            margin: 0; 
+        }
+
+        .container { 
+            max-width: 1200px; 
+            margin: 20px auto; 
+            background: rgba(255, 255, 255, 0.85); 
+            padding: 20px; 
+            border-radius: 20px; 
+            box-shadow: 0 8px 32px rgba(0,0,0,0.05); 
+            border: 4px solid #fff;
+        }
+
+        .sticky-header { 
+            position: sticky; 
+            top: 0; 
+            background: rgba(255, 255, 255, 0.95); 
+            padding: 15px 0; 
+            z-index: 100; 
+            border-bottom: 3px solid var(--poke-gray); 
+            margin-bottom: 20px; 
+        }
+
+        h2 { 
+            margin: 0 0 10px 0; 
+            color: var(--poke-red); 
+            font-size: 1.8em;
+            letter-spacing: 2px;
+        }
+
+        /* --- 経験値バー風リミットゲージ --- */
+        .limit-gauge-outer {
+            max-width: 500px;
+            margin: 10px auto;
+            padding: 2px;
+            background: #666; 
+            border-radius: 10px;
+            border: 2px solid #444;
+        }
+
+        .limit-gauge-bg {
+            height: 14px;
+            background: #eee;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #limitFill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(to bottom, #a0e515, var(--exp-green));
+            transition: width 0.4s ease-out;
+        }
+
+        .limit-label {
+            font-size: 11px;
+            font-weight: bold;
+            color: #444;
+            margin-top: 4px;
+            display: block;
+        }
+
+        @keyframes complete-flash {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+
+        .limit-max #limitFill {
+            background: linear-gradient(to right, #ff9999, #ffcc99, #ffff99, #99ff99, #99ffff, #9999ff);
+            animation: complete-flash 1s infinite;
+        }
+
+        /* --- UIパーツ --- */
+        .status { margin: 10px 0; font-weight: bold; font-size: 1.1em; }
+        #message { height: 24px; font-weight: bold; margin-bottom: 10px; }
+
+        input { 
+            font-size: 18px; 
+            padding: 12px 20px; 
+            width: 50%; 
+            border: 2px solid var(--poke-gray); 
+            border-radius: 30px; 
+            outline: none; 
+            background: #fff; 
+            color: var(--text-main); 
+            transition: 0.3s;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+        }
+        input:focus { border-color: var(--poke-red); }
+
+        .btn { 
+            padding: 10px 25px; 
+            font-size: 15px; 
+            font-weight: bold;
+            cursor: pointer; 
+            border-radius: 30px; 
+            border: none; 
+            transition: 0.3s; 
+            vertical-align: middle; 
+            margin-left: 5px;
+        }
+
+        .giveup-btn { background: var(--poke-gray); color: #666; }
+        .giveup-btn:hover { background: #d0d0d0; }
+        
+        .retry-btn { background: var(--poke-red); color: white; }
+        .retry-btn:hover { background: #ff7f7f; }
+
+        /* --- リスト部分 --- */
+        .list { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); 
+            gap: 15px; 
+            margin-top: 25px; 
+        }
+
+        .item { 
+            padding: 15px 10px; 
+            background: #fff; 
+            border-radius: 15px; 
+            color: #666; 
+            border: 2px solid var(--poke-gray); 
+            font-size: 13px; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            min-height: 60px; 
+            transition: 0.3s transform ease;
+        }
+
+.hint-text { 
+    font-size: 0.85em; 
+    margin-bottom: 4px; 
+    color: #666;
+    font-weight: bold;
+}
+        .answer-text { font-size: 1.0em; font-weight: bold; }
+
+/* 正解時：モンスターボールをイメージした上下ツートンデザイン */
+        .item.found { 
+            background: linear-gradient(to bottom, 
+                var(--poke-red) 0%, 
+                var(--poke-red) 50%, 
+                #ffffff 50%, 
+                #ffffff 100%
+            ); 
+            color: var(--text-main); 
+            border: 3px solid #777; /* ボールの境界線のようなグレー */
+            transform: scale(1.05);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        /* 中央のボタンをイメージした装飾（オプション） */
+        .item.found::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 12px;
+            height: 12px;
+            background: #fff;
+            border: 2px solid #777;
+            border-radius: 50%;
+            z-index: 1;
+        }
+
+        .item.found .hint-text { 
+            color: #fff; /* 上半分の赤背景に乗るため白文字に */
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+            position: relative;
+            z-index: 2;
+            margin-bottom: 8px; /* 境界線を避けるための余白 */
+        }
+        
+        .item.found .answer-text { 
+            color: var(--text-main); /* 下半分の白背景に乗る */
+            position: relative;
+            z-index: 2;
+            margin-top: 8px; /* 境界線を避けるための余白 */
+        }
+
+        /* ギブアップ時 */
+        .item.missed { background: #f9f9f9; border-color: #bbb; }
+        .item.missed .answer-text { color: #ff7f7f; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="sticky-header">
+        <h2>ポケモンの分類いえるかな（BW～）</h2>
+        <div class="limit-gauge-outer" id="gaugeWrapper">
+            <div class="limit-gauge-bg">
+                <div id="limitFill"></div>
+            </div>
+        </div>
+        <div class="limit-label">ぜんぶで <span id="total">--</span> のうち <span id="progressPercent">0%</span> をゲット！</div>
+        
+        <div class="status">のこり：<span id="remaining">--</span></div>
+        <div id="message"></div>
+        
+        <input type="text" id="answerInput" placeholder="ぶんるいを入力..." autofocus autocomplete="off">
+        <button class="btn giveup-btn" id="giveupBtn">あきらめる</button>
+        <button class="btn retry-btn" id="retryBtn" style="display:none;">もういちど！</button>
+    </div>
+    
+    <div class="list" id="answerList"></div>
+</div>
+
+<script>
+    /* --- 基本設定（ロジックは完全維持） --- */
+    const config = {
+        placeholderNormal: "ぶんるいを入力してEnter",
+        placeholderGameOver: "おつかれさまでした！",
+        storageKey: "quiz_save_" + document.title
+    };
+
+    const quizData = [
+        { display: "あいぞうポケモン", accept: ["あいぞう"], hint: "ラブトロス"},
+        { display: "アイドルポケモン", accept: ["あいどる"], hint: "オシャマリ"},
+        { display: "あかごポケモン", accept: ["あかご"], hint: "エレズン"},
+        { display: "あくじきポケモン", accept: ["あくじき"], hint: "アクジキング"},
+        { display: "あくとうポケモン", accept: ["あくとう"], hint: "ズルズキン"},
+        { display: "あごオノポケモン", accept: ["あごおの"], hint: "オノンド、オノノクス"},
+        { display: "あしかポケモン", accept: ["あしか"], hint: "アシマリ"},
+        { display: "あなごポケモン", accept: ["あなご"], hint: "ウミディグダ、ウミトリオ"},
+        { display: "あなほりポケモン", accept: ["あなほり"], hint: "ホルビー、ホルード"},
+        { display: "あばれうまポケモン", accept: ["あばれうま"], hint: "ブリザポス"},
+        { display: "あやつりポケモン", accept: ["あやつり"], hint: "ゴチミル"},
+        { display: "アリクイポケモン", accept: ["ありくい"], hint: "クイタラン"},
+        { display: "あわがえるポケモン", accept: ["あわがえる"], hint: "ケロマツ、ゲコガシラ"},
+        { display: "アンテナポケモン", accept: ["あんてな"], hint: "デデンネ"},
+        { display: "いかくポケモン", accept: ["いかく"], hint: "ワルビアル"},
+        { display: "いがぐりポケモン", accept: ["いがぐり"], hint: "ハリマロン"},
+        { display: "いざないポケモン", accept: ["いざない"], hint: "シャンデラ"},
+        { display: "いしがきポケモン", accept: ["いしがき"], hint: "ツンデツンデ"},
+        { display: "いしやどポケモン", accept: ["いしやど"], hint: "イシズマイ"},
+        { display: "いじわるポケモン", accept: ["いじわる"], hint: "ベロバー"},
+        { display: "いたずらポケモン", accept: ["いたずら"], hint: "いめしめられしフーパ"},
+        { display: "いちりんポケモン", accept: ["いちりん"], hint: "フラベベ、フラエッテ"},
+        { display: "いとだまポケモン", accept: ["いとだま"], hint: "タマンチュラ"},
+        { display: "いぬポケモン", accept: ["いぬ"], hint: "パルスワン、バウッツェル"},
+        { display: "いもむしポケモン", accept: ["いもむし"], hint: "ユキハミ"},
+        { display: "イルカポケモン", accept: ["いるか"], hint: "ナミイルカ、イルカマン"},
+        { display: "いわやどポケモン", accept: ["いわやど"], hint: "イワパレス"},
+        { display: "インコポケモン", accept: ["いんこ"], hint: "イキリンコ"},
+        { display: "うさぎポケモン", accept: ["うさぎ"], hint: "ヒバニー、ラビフット"},
+        { display: "うさぎうまポケモン", accept: ["うさぎうま"], hint: "ドロバンコ"},
+        { display: "うちあげポケモン", accept: ["うちあげ"], hint: "テッカグヤ"},
+        { display: "うにポケモン", accept: ["うに"], hint: "バチンウニ"},
+        { display: "うのみポケモン", accept: ["うのみ"], hint: "ウッウ"},
+        { display: "うみつばめポケモン", accept: ["うみつばめ"], hint: "カイデン"},
+        { display: "うらめしポケモン", accept: ["うらめし"], hint: "ドラメシヤ"},
+        { display: "うろこポケモン", accept: ["うろこ"], hint: "ジャラコ、ジャランゴ、ジャラランガ"},
+        { display: "うろつきポケモン", accept: ["うろつき"], hint: "ヤングース"},
+        { display: "エージェントポケモン", accept: ["えーじぇんと"], hint: "インテレオン"},
+        { display: "エレクトロンポケモン", accept: ["えれくとろん"], hint: "レジエレキ"},
+        { display: "えんじょうポケモン", accept: ["えんじょう"], hint: "ヒヒダルマ"},
+        { display: "えんびポケモン", accept: ["えんび"], hint: "フェローチェ"},
+        { display: "おうけんポケモン", accept: ["おうけん"], hint: "ギルガルド"},
+        { display: "おうじゃポケモン", accept: ["おうじゃ"], hint: "カエンジシ"},
+        { display: "おおうおポケモン", accept: ["おおうお"], hint: "イダイトウ"},
+        { display: "オオカミポケモン", accept: ["おおかみ"], hint: "ルガルガン"},
+        { display: "おおづつポケモン", accept: ["おおづつ"], hint: "ドデカバシ"},
+        { display: "おおツノポケモン", accept: ["おおつの"], hint: "アヤシシ"},
+        { display: "おおなまずポケモン", accept: ["おおなまず"], hint: "ヘイラッシャ"},
+        { display: "おおひぶたポケモン", accept: ["おおひぶた"], hint: "エンブオー"},
+        { display: "おたまポケモン", accept: ["おたま"], hint: "オタマロ"},
+        { display: "おだやかポケモン", accept: ["おだやか"], hint: "ミブリム"},
+        { display: "おとしものポケモン", accept: ["おとしもの"], hint: "オトシドリ"},
+        { display: "おばけいぬポケモン", accept: ["おばけいぬ"], hint: "ボチ、ハカドッグ"},
+        { display: "おむつポケモン", accept: ["おむつ"], hint: "バルチャイ"},
+        { display: "おめんポケモン", accept: ["おめん"], hint: "オーガポン"},
+        { display: "おやぶんポケモン", accept: ["おやぶん"], hint: "マフィティフ"},
+        { display: "オリーブポケモン", accept: ["おりーぶ"], hint: "ミニーブ、オリーニョ、オリーヴァ"},
+        { display: "おんねんポケモン", accept: ["おんねん"], hint: "デスバーン"},
+        { display: "おんぱポケモン", accept: ["おんぱ"], hint: "オンバット、オンバーン"},
+        { display: "ガーデンポケモン", accept: ["がーでん"], hint: "フラージェス"},
+        { display: "かいてんポケモン", accept: ["かいてん"], hint: "マーイーカ"},
+        { display: "かいほうポケモン", accept: ["かいほう"], hint: "ママンボウ"},
+        { display: "かぎたばポケモン", accept: ["かぎたば"], hint: "クレッフィ"},
+        { display: "かげすみポケモン", accept: ["かげすみ"], hint: "マーシャドー"},
+        { display: "かぜかくれポケモン", accept: ["かぜかくれ"], hint: "エルフーン"},
+        { display: "かせきポケモン", accept: ["かせき"], hint: "パッチラゴン、パッチルドン、ウオノラゴン、ウオチルドン"},
+        { display: "がちりんポケモン", accept: ["がちりん"], hint: "ルナアーラ"},
+        { display: "カップルポケモン", accept: ["かっぷる"], hint: "ワッカネズミ"},
+        { display: "かなうちポケモン", accept: ["かなうち"], hint: "カヌチャン"},
+        { display: "かぶりつきポケモン", accept: ["かぶりつき"], hint: "カブルモ"},
+        { display: "かぼちゃポケモン", accept: ["かぼちゃ"], hint: "バケッチャ、パンプジン"},
+        { display: "かまくさポケモン", accept: ["かまくさ"], hint: "カリキリ"},
+        { display: "かみつきポケモン", accept: ["かみつき"], hint: "カジリガメ"},
+        { display: "カラスポケモン", accept: ["からす"], hint: "アオガラス、アーマーガア"},
+        { display: "からてポケモン", accept: ["からて"], hint: "ダゲキ"},
+        { display: "からぬけポケモン", accept: ["からぬけ"], hint: "アギルダー"},
+        { display: "かるがもポケモン", accept: ["かるがも"], hint: "ネギガナイト"},
+        { display: "がんえんポケモン", accept: ["がんえん"], hint: "コジオ、ジオヅム、キョジオーン"},
+        { display: "かんおけポケモン", accept: ["かんおけ"], hint: "デスカーン"},
+        { display: "がんくつポケモン", accept: ["がんくつ"], hint: "テラキオン"},
+        { display: "かんじょうポケモン", accept: ["かんじょう"], hint: "イエッサン"},
+        { display: "かんだいポケモン", accept: ["かんだい"], hint: "ムーランド"},
+        { display: "かんろくポケモン", accept: ["かんろく"], hint: "ダイケンキ"},
+        { display: "きくらげポケモン", accept: ["きくらげ"], hint: "ノノクラゲ、リククラゲ"},
+        { display: "きせいポケモン", accept: ["きせい"], hint: "ウツロイド"},
+        { display: "きせつポケモン", accept: ["きせつ"], hint: "シキジカ、メブキジカ"},
+        { display: "ぎたいポケモン", accept: ["ぎたい"], hint: "シャリタツ"},
+        { display: "きつつきポケモン", accept: ["きつつき"], hint: "ツツケラ"},
+        { display: "キツネポケモン", accept: ["きつね"], hint: "フォッコ、テールナー、マフォクシー、クスネ、フォクスライ"},
+        { display: "きのこポケモン", accept: ["きのこ"], hint: "タマゲタケ、モロバレル"},
+        { display: "キバポケモン", accept: ["きば"], hint: "キバゴ"},
+        { display: "きへいポケモン", accept: ["きへい"], hint: "シュバルゴ"},
+        { display: "ぎゃくてんポケモン", accept: ["ぎゃくてん"], hint: "カラマネロ"},
+        { display: "きゅうあいポケモン", accept: ["きゅうあい"], hint: "ココロモリ"},
+        { display: "きょうかいポケモン", accept: ["きょうかい"], hint: "キュレム"},
+        { display: "ぎょうしポケモン", accept: ["ぎょうし"], hint: "ゴチム"},
+        { display: "きょうぼうポケモン", accept: ["きょうぼう"], hint: "サザンドラ"},
+        { display: "きょせきポケモン", accept: ["きょせき"], hint: "イシヘンジン"},
+        { display: "キョダイポケモン", accept: ["きょだい"], hint: "ムゲンダイナ"},
+        { display: "きりかぶポケモン", accept: ["きりかぶ"], hint: "ボクレー"},
+        { display: "きりはなしポケモン", accept: ["きりはなし"], hint: "ミガルーサ"},
+        { display: "キングポケモン", accept: ["きんぐ"], hint: "バドレックス"},
+        { display: "きんこつポケモン", accept: ["きんこつ"], hint: "ドッコラー、ドテッコツ、ローブシン"},
+        { display: "くいつきポケモン", accept: ["くいつき"], hint: "カムカメ"},
+        { display: "くさざるポケモン", accept: ["くさざる"], hint: "ヤナップ"},
+        { display: "くさねこポケモン", accept: ["くさねこ"], hint: "ニャオハ、ニャローテ"},
+        { display: "くさばねポケモン", accept: ["くさばね"], hint: "モクロー"},
+        { display: "くさへびポケモン", accept: ["くさへび"], hint: "ツタージャ、ジャノビー"},
+        { display: "クサモドキポケモン", accept: ["くさもどき"], hint: "クズモー、ドラミドロ"},
+        { display: "くしざしポケモン", accept: ["くしざし"], hint: "カマスジョー"},
+        { display: "くっつきポケモン", accept: ["くっつき"], hint: "バチュル"},
+        { display: "くびながポケモン", accept: ["くびなが"], hint: "リキキリン"},
+        { display: "クライミングポケモン", accept: ["くらいみんぐ"], hint: "オオニューラ"},
+        { display: "クリームポケモン", accept: ["くりーむ"], hint: "マホミル、マホイップ"},
+        { display: "くわがたポケモン", accept: ["くわがた"], hint: "クワガノン"},
+        { display: "ぐんかんどりポケモン", accept: ["ぐんかんどり"], hint: "タイカイデン"},
+        { display: "けいかいポケモン", accept: ["けいかい"], hint: "ミルホッグ"},
+        { display: "けがにポケモン", accept: ["けがに"], hint: "ケケンカニ"},
+        { display: "けっしょうポケモン", accept: ["けっしょう"], hint: "フリージオ"},
+        { display: "けらいポケモン", accept: ["けらい"], hint: "イイネイヌ、マシマシラ、キチキギス"},
+        { display: "けんざんポケモン", accept: ["けんざん"], hint: "ハリーマン"},
+        { display: "げんしせいポケモン", accept: ["げんしせい"], hint: "コスモウム"},
+        { display: "けんじゃポケモン", accept: ["けんじゃ"], hint: "ヤレユータン"},
+        { display: "けんとうポケモン", accept: ["けんとう"], hint: "マケンカニ"},
+        { display: "けんぽうポケモン", accept: ["けんぽう"], hint: "ダクマ、ウーラオス"},
+        { display: "こいぬポケモン", accept: ["こいぬ"], hint: "ヨーテリー、イワンコ、ワンパチ、パピモッチ"},
+        { display: "こうあつポケモン", accept: ["こうあつ"], hint: "ギガイアス"},
+        { display: "こうおんポケモン", accept: ["こうおん"], hint: "バオップ"},
+        { display: "ごうきんポケモン", accept: ["ごうきん"], hint: "ジュラルドン、ブリジュラス"},
+        { display: "こうすいポケモン", accept: ["こうすい"], hint: "シュシュプ"},
+        { display: "こうせきポケモン", accept: ["こうせき"], hint: "ガントル、キラーメ、キラフロル"},
+        { display: "こうちゃポケモン", accept: ["こうちゃ"], hint: "ヤバチャ、ポットデス"},
+        { display: "こうもりポケモン", accept: ["こうもり"], hint: "コロモリ"},
+        { display: "ごうわんポケモン", accept: ["ごうわん"], hint: "キテルグマ"},
+        { display: "こおりがポケモン", accept: ["こおりが"], hint: "モスノウ"},
+        { display: "こおりビレポケモン", accept: ["こおりびれ"], hint: "セビエ、セゴール"},
+        { display: "ゴーレムポケモン", accept: ["ごーれむ"], hint: "ゴビット、ゴルーグ"},
+        { display: "こがもポケモン", accept: ["こがも"], hint: "クワッス"},
+        { display: "こくいんポケモン", accept: ["こくいん"], hint: "ゼクロム"},
+        { display: "こざかなポケモン", accept: ["こざかな"], hint: "ヨワシ"},
+        { display: "こざるポケモン", accept: ["こざる"], hint: "サルノリ"},
+        { display: "こせいだいポケモン", accept: ["こせいだい"], hint: "ゲノセクト"},
+        { display: "こそだてポケモン", accept: ["こそだて"], hint: "ハハコモリ"},
+        { display: "こだいがめポケモン", accept: ["こだいがめ"], hint: "プロトーガ、アバゴーラ"},
+        { display: "ことりポケモン", accept: ["ことり"], hint: "ココガラ"},
+        { display: "こなふきポケモン", accept: ["こなふき"], hint: "コフキムシ、コフーライ"},
+        { display: "こばとポケモン", accept: ["こばと"], hint: "マメパト"},
+        { display: "コマドリポケモン", accept: ["こまどり"], hint: "ヤヤコマ"},
+        { display: "ゴミすてばポケモン", accept: ["ごみすてば"], hint: "ダストダス"},
+        { display: "ゴミぶくろポケモン", accept: ["ごみぶくろ"], hint: "ヤブクロン"},
+        { display: "コメディアンポケモン", accept: ["こめでぃあん"], hint: "バリコオル"},
+        { display: "ころがしポケモン", accept: ["ころがし"], hint: "シガロコ、ベラカス"},
+        { display: "ころがりくさポケモン", accept: ["ころがりくさ"], hint: "アノクサ、アノホラグサ"},
+        { display: "こわもてポケモン", accept: ["こわもて"], hint: "ゴロンダ"},
+        { display: "さいこどりポケモン", accept: ["さいこどり"], hint: "アーケン、アーケオス"},
+        { display: "さいほうポケモン", accept: ["さいほう"], hint: "クルミル"},
+        { display: "さいぼうポケモン", accept: ["さいぼう"], hint: "ユニラン"},
+        { display: "さいやくポケモン", accept: ["さいやく"], hint: "チオンジェン、パオジアン、ディンルー、イーユイ"},
+        { display: "さばくワニポケモン", accept: ["さばくわに"], hint: "メグロコ、ワルビル"},
+        { display: "サボテンポケモン", accept: ["さぼてん"], hint: "マラカッチ"},
+        { display: "さんごポケモン", accept: ["さんご"], hint: "サニゴーン"},
+        { display: "じせいポケモン", accept: ["じせい"], hint: "ニャスパー"},
+        { display: "じたばたポケモン", accept: ["じたばた"], hint: "ヌイコグマ"},
+        { display: "しのびポケモン", accept: ["しのび"], hint: "ゲッコウガ"},
+        { display: "しはいポケモン", accept: ["しはい"], hint: "モモワロウ"},
+        { display: "しゅうごうポケモン", accept: ["しゅうごう"], hint: "ガメノデス"},
+        { display: "じゅうじゅつポケモン", accept: ["じゅうじゅつ"], hint: "オトスパス"},
+        { display: "じゅうどうポケモン", accept: ["じゅうどう"], hint: "ナゲキ"},
+        { display: "しゅぎょうポケモン", accept: ["しゅぎょう"], hint: "フタチマル"},
+        { display: "しゅんば", accept: ["しゅんば"], hint: "レイスポス"},
+        { display: "しょうりポケモン", accept: ["しょうり"], hint: "ビクティニ"},
+        { display: "しょうわるポケモン", accept: ["しょうわる"], hint: "チョロネコ、ギモー"},
+        { display: "しらとりポケモン", accept: ["しらとり"], hint: "スワンナ"},
+        { display: "シンガーポケモン", accept: ["しんがー"], hint: "ラウドボーン"},
+        { display: "シンクロポケモン", accept: ["しんくろ"], hint: "カラミンゴ"},
+        { display: "じんけいポケモン", accept: ["じんけい"], hint: "タイレーツ"},
+        { display: "じんこうポケモン", accept: ["じんこう"], hint: "タイプ：ヌル、シルヴァディ"},
+        { display: "しんせつポケモン", accept: ["しんせつ"], hint: "バニプッチ"},
+        { display: "じんぞうポケモン", accept: ["じんぞう"], hint: "マギアナ"},
+        { display: "しんどうポケモン", accept: ["しんどう"], hint: "ガマガル、ガマゲロゲ"},
+        { display: "じんらいポケモン", accept: ["じんらい"], hint: "ゼラオラ"},
+        { display: "すいほうポケモン", accept: ["すいほう"], hint: "シズクモ、オニシズクモ"},
+        { display: "スカーフポケモン", accept: ["すかーふ"], hint: "チラチーノ"},
+        { display: "スチームポケモン", accept: ["すちーむ"], hint: "ボルケニオン"},
+        { display: "ずつきうしポケモン", accept: ["ずつきうし"], hint: "バッフロン"},
+        { display: "ステルスポケモン", accept: ["すてるす"], hint: "ドラパルト"},
+        { display: "ストライカーポケモン", accept: ["すとらいかー"], hint: "エースバーン"},
+        { display: "すなのしろポケモン", accept: ["すなのしろ"], hint: "シロデスナ"},
+        { display: "すなへびポケモン", accept: ["すなへび"], hint: "スナヘビ、サダイジャ"},
+        { display: "すなやまポケモン", accept: ["すなやま"], hint: "スナバァ"},
+        { display: "せいうんポケモン", accept: ["せいうん"], hint: "コスモッグ"},
+        { display: "せいじゃくポケモン", accept: ["せいじゃく"], hint: "ブリムオン"},
+        { display: "せいしゅくポケモン", accept: ["せいしゅく"], hint: "テブリム"},
+        { display: "せいめいポケモン", accept: ["せいめい"], hint: "ゼルネアス"},
+        { display: "せきたんポケモン", accept: ["せきたん"], hint: "タンドン、トロッゴン、セキタンザン"},
+        { display: "せわやくポケモン", accept: ["せわやく"], hint: "ドロンチ"},
+        { display: "せんぷうポケモン", accept: ["せんぷう"], hint: "トルネロス"},
+        { display: "せんりつポケモン", accept: ["せんりつ"], hint: "メロエッタ"},
+        { display: "そうげんポケモン", accept: ["そうげん"], hint: "ビリジオン"},
+        { display: "そうこうポケモン", accept: ["そうこう"], hint: "コソクムシ、グソクムシャ"},
+        { display: "ぞうふくポケモン", accept: ["ぞうふく"], hint: "ランクルス"},
+        { display: "そぼうポケモン", accept: ["そぼう"], hint: "モノズ"},
+        { display: "ソリストポケモン", accept: ["そりすと"], hint: "アシレーヌ"},
+        { display: "たいでんポケモン", accept: ["たいでん"], hint: "シママ"},
+        { display: "だいとうポケモン", accept: ["だいとう"], hint: "ドドゲザン"},
+        { display: "たいまつポケモン", accept: ["たいまつ"], hint: "メラルバ"},
+        { display: "たいようポケモン", accept: ["たいよう"], hint: "ウルガモス"},
+        { display: "たからばこポケモン", accept: ["たからばこ"], hint: "コレクレー"},
+        { display: "たからものポケモン", accept: ["たからもの"], hint: "サーフゴー"},
+        { display: "たきとうポケモン", accept: ["たきとう"], hint: "ブロロローム"},
+        { display: "だだっこポケモン", accept: ["だだっこ"], hint: "タタッコ"},
+        { display: "ダチョウポケモン", accept: ["だちょう"], hint: "クエスパトラ"},
+        { display: "だっぴポケモン", accept: ["だっぴ"], hint: "ズルッグ"},
+        { display: "たましいポケモン", accept: ["たましい"], hint: "デスマス"},
+        { display: "だるまポケモン", accept: ["だるま"], hint: "ダルマッカ"},
+        { display: "たんきとうポケモン", accept: ["たんきとう"], hint: "ブロロン"},
+        { display: "ダンサーポケモン", accept: ["だんさー"], hint: "ウェーニバル"},
+        { display: "ダンスポケモン", accept: ["だんす"], hint: "オドリドリ"},
+        { display: "ちつじょポケモン", accept: ["ちつじょ"], hint: "ジガルデ"},
+        { display: "ちていポケモン", accept: ["ちてい"], hint: "ドリュウズ"},
+        { display: "ちゅうけんポケモン", accept: ["ちゅうけん"], hint: "ハーデリア"},
+        { display: "チンチラポケモン", accept: ["ちんちら"], hint: "チラーミィ"},
+        { display: "つちへびポケモン", accept: ["つちへび"], hint: "ノココッチ"},
+        { display: "ツリアブポケモン", accept: ["つりあぶ"], hint: "アブリー、アブリボン"},
+        { display: "つわものポケモン", accept: ["つわもの"], hint: "ザシアン、ザマゼンタ"},
+        { display: "ツンドラポケモン", accept: ["つんどら"], hint: "アマルス、アマルルガ"},
+        { display: "てあてポケモン", accept: ["てあて"], hint: "パーモット"},
+        { display: "ていしポケモン", accept: ["ていし"], hint: "タチフサグマ"},
+        { display: "でいたんポケモン", accept: ["でいたん"], hint: "ガチグマ"},
+        { display: "てつアリポケモン", accept: ["てつあり"], hint: "アイアント"},
+        { display: "てっしんポケモン", accept: ["てっしん"], hint: "コバルオン"},
+        { display: "テラスタルポケモン", accept: ["てらすたる"], hint: "テラパゴス"},
+        { display: "でんきうおポケモン", accept: ["でんきうお"], hint: "シビシラス、シビビール、シビルドン"},
+        { display: "でんきおたまポケモン", accept: ["でんきおたま"], hint: "ズピカ"},
+        { display: "でんきがえるポケモン", accept: ["でんきがえる"], hint: "ハラバリー"},
+        { display: "でんきグモポケモン", accept: ["でんきぐも"], hint: "デンチュラ"},
+        { display: "でんしょくポケモン", accept: ["でんしょく"], hint: "デンジュモク"},
+        { display: "てんたいポケモン", accept: ["てんたい"], hint: "ゴチルゼル"},
+        { display: "とうけつポケモン", accept: ["とうけつ"], hint: "ツンベアー"},
+        { display: "とうけんポケモン", accept: ["とうけん"], hint: "ヒトツキ、ニダンギル"},
+        { display: "とうじんポケモン", accept: ["とうじん"], hint: "キリキザン"},
+        { display: "どうぞうポケモン", accept: ["どうぞう"], hint: "ゾウドウ、ダイオウドウ"},
+        { display: "どくざるポケモン", accept: ["どくざる"], hint: "タギングル"},
+        { display: "どくトカゲポケモン", accept: ["どくとかげ"], hint: "ヤトウモリ、エンニュート"},
+        { display: "どくねずみポケモン", accept: ["どくねずみ"], hint: "シルシュルー"},
+        { display: "どくばりポケモン", accept: ["どくばり"], hint: "ベベノム、アーゴヨン"},
+        { display: "とげうおポケモン", accept: ["とげうお"], hint: "ドオー"},
+        { display: "とげざるポケモン", accept: ["とげざる"], hint: "ヤナッキー"},
+        { display: "とげだまポケモン", accept: ["とげだま"], hint: "ナットレイ"},
+        { display: "とげのみポケモン", accept: ["とげのみ"], hint: "テッシード"},
+        { display: "とげよろいポケモン", accept: ["とげよろい"], hint: "ハリボーグ、ブリガロン"},
+        { display: "とちがみポケモン", accept: ["とちがみ"], hint: "カプコケコ、カプ・テテフ、カプ・ブルル、カプ・レヒレ"},
+        { display: "とつげきポケモン", accept: ["とつげき"], hint: "サシカマス"},
+        { display: "ドラゴンポケモン", accept: ["どらごん"], hint: "ヌメルゴン"},
+        { display: "トラップポケモン", accept: ["とらっぷ"], hint: "マッギョ、ワナイダー"},
+        { display: "ドラマーポケモン", accept: ["どらまー"], hint: "ゴリランダー"},
+        { display: "とりもどきポケモン", accept: ["とりもどき"], hint: "シンボラー"},
+        { display: "ながれぼしポケモン", accept: ["ながれぼし"], hint: "メテノ"},
+        { display: "ナットポケモン", accept: ["なっと"], hint: "メルタン、メルメタル"},
+        { display: "ななほしポケモン", accept: ["ななほし"], hint: "イオルブ"},
+        { display: "なまこポケモン", accept: ["なまこ"], hint: "ナマコブシ"},
+        { display: "なんたいポケモン", accept: ["なんたい"], hint: "ヌメラ、ヌメイル"},
+        { display: "にちりんポケモン", accept: ["にちりん"], hint: "ソルガレオ"},
+        { display: "にめんポケモン", accept: ["にめん"], hint: "モルペコ"},
+        { display: "ねずみポケモン", accept: ["ねずみ"], hint: "パモ、パモット"},
+        { display: "ねっこポケモン", accept: ["ねっこ"], hint: "チュリネ"},
+        { display: "のばとポケモン", accept: ["のばと"], hint: "ハトーボー"},
+        { display: "バイキングポケモン", accept: ["ばいきんぐ"], hint: "ニャイキング"},
+        { display: "はかいポケモン", accept: ["はかい"], hint: "イベルタル"},
+        { display: "はぎしりポケモン", accept: ["はぎしり"], hint: "ハギギシリ"},
+        { display: "ばくはつがめポケモン", accept: ["ばくはつがめ"], hint: "バクガメス"},
+        { display: "はくようポケモン", accept: ["はくよう"], hint: "レシラム"},
+        { display: "はぐるまポケモン", accept: ["はぐるま"], hint: "ギアル、ギギアル、ギギギアル"},
+        { display: "ばけぎつねポケモン", accept: ["ばけぎつね"], hint: "ゾロアーク"},
+        { display: "ばけのかわポケモン", accept: ["ばけのかわ"], hint: "ミミッキュ"},
+        { display: "はごもりポケモン", accept: ["はごもり"], hint: "クルマユ"},
+        { display: "はっこうポケモン", accept: ["はっこう"], hint: "ネマシュ、マシェード"},
+        { display: "バッタポケモン", accept: ["ばった"], hint: "マメバッタ、エクスレッグ"},
+        { display: "バッテリーポケモン", accept: ["ばってりー"], hint: "デンヂムシ"},
+        { display: "はつでんポケモン", accept: ["はつでん"], hint: "エリキテル、エレザード"},
+        { display: "ばっとうポケモン", accept: ["ばっとう"], hint: "カミツルギ"},
+        { display: "はつねつポケモン", accept: ["はつねつ"], hint: "ヤクデ、マルヤクデ"},
+        { display: "はなかざりポケモン", accept: ["はなかざり"], hint: "ドレディア、ヒメンカ"},
+        { display: "はなかまポケモン", accept: ["はなかま"], hint: "ラランテス"},
+        { display: "はなつみポケモン", accept: ["はなつみ"], hint: "キュワワー"},
+        { display: "はなびポケモン", accept: ["はなび"], hint: "ズガドーン"},
+        { display: "はばねポケモン", accept: ["はばね"], hint: "フクスロー"},
+        { display: "ハバネロポケモン", accept: ["はばねろ"], hint: "カプサイジ、スコヴィラン"},
+        { display: "はものポケモン", accept: ["はもの"], hint: "コマタナ"},
+        { display: "パラドックスポケモン", accept: ["ぱらどっくす"], hint: "イダイナキバ、サケブシッポ、アラブルタケ、ハバタクカミ、チヲハウハネ、スナノケガワ、テツノワダチ、テツノツツミ、テツノカイナ、テツノコウベ、テツノドクガ、テツノイバラ、トドロクツキ、テツノブジン、コライドン、ミライドン、ウネルミナモ、テツノイサハ、ウガツホムラ、タケルライコ、テツノイワオ、テツノカシラ"},
+        { display: "はりこみポケモン", accept: ["はりこみ"], hint: "デカグース"},
+        { display: "パンクポケモン", accept: ["ぱんく"], hint: "ストリンダー"},
+        { display: "ばんばポケモン", accept: ["ばんば"], hint: "バンバドロ"},
+        { display: "ハンマーポケモン", accept: ["はんまー"], hint: "ナカヌチャン、デカヌチャン"},
+        { display: "ビートポケモン", accept: ["びーと"], hint: "バチンキー"},
+        { display: "ヒールポケモン", accept: ["ひーる"], hint: "ガオガエン"},
+        { display: "ひつじポケモン", accept: ["ひつじ"], hint: "ウールー、バイウールー"},
+        { display: "ヒトデナシポケモン", accept: ["ひとでなし"], hint: "ヒドイデ、ドヒドイデ"},
+        { display: "ヒナわしポケモン", accept: ["ひなわし"], hint: "ワシボン"},
+        { display: "ひねこポケモン", accept: ["ひねこ"], hint: "ニャビー、ニャヒート"},
+        { display: "ひのけんしポケモン", accept: ["ひのけんし"], hint: "ソウブレイズ"},
+        { display: "ひのこポケモン", accept: ["ひのこ"], hint: "バオッキー、ヒノヤコマ、カルボウ"},
+        { display: "ひのせんしポケモン", accept: ["ひのせんし"], hint: "グレンアルマ"},
+        { display: "ひぶたポケモン", accept: ["ひぶた"], hint: "ポカブ、チャオブー"},
+        { display: "ヒヤリングポケモン", accept: ["ひやりんぐ"], hint: "タブンネ"},
+        { display: "ひょうかいポケモン", accept: ["ひょうかい"], hint: "カチコール"},
+        { display: "ひょうけつポケモン", accept: ["ひょうけつ"], hint: "クマシュン"},
+        { display: "ひょうざんポケモン", accept: ["ひょうざん"], hint: "クレベース"},
+        { display: "ひょうせつポケモン", accept: ["ひょうせつ"], hint: "バニリッチ"},
+        { display: "ひょうりゅうポケモン", accept: ["ひょうりゅう"], hint: "セグレイブ"},
+        { display: "ビルドアップポケモン", accept: ["びるどあっぷ"], hint: "オーロンゲ"},
+        { display: "ファミリーポケモン", accept: ["ふぁみりー"], hint: "イッカネズミ"},
+        { display: "プードルポケモン", accept: ["ぷーどる"], hint: "トリミアン"},
+        { display: "ぶじゅつポケモン", accept: ["ぶじゅつ"], hint: "コジョフー、コジョンド"},
+        { display: "ぶたポケモン", accept: ["ぶた"], hint: "グルトン、パフュートン"},
+        { display: "ふたてポケモン", accept: ["ふたて"], hint: "カメテテ"},
+        { display: "ふゆうポケモン", accept: ["ふゆう"], hint: "プルリル、ブルンゲル"},
+        { display: "プライドポケモン", accept: ["ぷらいど"], hint: "ケンホロウ"},
+        { display: "ブリザードポケモン", accept: ["ぶりざーど"], hint: "バイバニラ"},
+        { display: "プリズムポケモン", accept: ["ぷりずむ"], hint: "ネクロズマ"},
+        { display: "フリルポケモン", accept: ["ふりる"], hint: "ヒラヒナ"},
+        { display: "フルーツポケモン", accept: ["ふるーつ"], hint: "アマカジ、アママイコ、アマージョ"},
+        { display: "ブレインポケモン", accept: ["ぶれいん"], hint: "リグレー、オーベム"},
+        { display: "ぶんかつポケモン", accept: ["ぶんかつ"], hint: "ダブラン"},
+        { display: "ふんどざるポケモン", accept: ["ふんどざる"], hint: "コノヨザル"},
+        { display: "ペンギンポケモン", accept: ["ぺんぎん"], hint: "コオリッポ"},
+        { display: "ホイップポケモン", accept: ["ほいっぷ"], hint: "ペロリーム"},
+        { display: "ぼうくんポケモン", accept: ["ぼうくん"], hint: "ガチゴラス"},
+        { display: "ほうこうポケモン", accept: ["ほうこう"], hint: "フレフワン"},
+        { display: "ほうじょうポケモン", accept: ["ほうじょう"], hint: "ランドロス"},
+        { display: "ほうすいポケモン", accept: ["ほうすい"], hint: "ヒヤッキー"},
+        { display: "ほうせきポケモン", accept: ["ほうせき"], hint: "メレシー、ディアンシー"},
+        { display: "ぼうちょうポケモン", accept: ["ぼうちょう"], hint: "マッシブーン"},
+        { display: "ほおばりポケモン", accept: ["ほおばり"], hint: "ホシガリス"},
+        { display: "ほねわしポケモン", accept: ["ほねわし"], hint: "バルジーナ"},
+        { display: "ほのおワニポケモン", accept: ["ほのおわに"], hint: "ホゲータ、アチゲータ"},
+        { display: "ほらあなポケモン", accept: ["ほらあな"], hint: "クリムガン"},
+        { display: "マイマイポケモン", accept: ["まいまい"], hint: "チョボマキ"},
+        { display: "まさかりポケモン", accept: ["まさかり"], hint: "バサギリ"},
+        { display: "マジシャンポケモン", accept: ["まじしゃん"], hint: "マスカーニャ"},
+        { display: "まじんポケモン", accept: ["まじん"], hint: "ときはなたれしフーパ"},
+        { display: "まちぶせポケモン", accept: ["まちぶせ"], hint: "ガケガニ"},
+        { display: "まっちゃポケモン", accept: ["まっちゃ"], hint: "チャデス、ヤバソチャ"},
+        { display: "まゆムカデポケモン", accept: ["まゆむかで"], hint: "ホイーガ"},
+        { display: "まるまりポケモン", accept: ["まるまり"], hint: "トゲデマル"},
+        { display: "マントルポケモン", accept: ["まんとる"], hint: "ダンゴロ"},
+        { display: "みずかけポケモン", accept: ["みずかけ"], hint: "ヒヤップ"},
+        { display: "みずでっぽうポケモン", accept: ["みずでっぽう"], hint: "ウデッポウ"},
+        { display: "みずとかげポケモン", accept: ["みずとかげ"], hint: "メッソン、ジメレオン"},
+        { display: "みずどりポケモン", accept: ["みずどり"], hint: "コアルヒー"},
+        { display: "みはりポケモン", accept: ["みはり"], hint: "ミネズミ"},
+        { display: "ミミズポケモン", accept: ["みみず"], hint: "ミミズズ"},
+        { display: "ムカデポケモン", accept: ["むかで"], hint: "フシデ"},
+        { display: "むすびつきポケモン", accept: ["むすびつき"], hint: "ニンフィア"},
+        { display: "メガムカデポケモン", accept: ["めがむかで"], hint: "ペンドラー"},
+        { display: "もくずポケモン", accept: ["もくず"], hint: "ダダリン"},
+        { display: "もぐらポケモン", accept: ["もぐら"], hint: "モグリュー"},
+        { display: "モモンガポケモン", accept: ["ももんが"], hint: "エモンガ"},
+        { display: "やばねポケモン", accept: ["やばね"], hint: "ジュナイパー"},
+        { display: "やんちゃポケモン", accept: ["やんちゃ"], hint: "ヤンチャム"},
+        { display: "ゆうもうポケモン", accept: ["ゆうもう"], hint: "ウォーグル"},
+        { display: "ゆうゆうポケモン", accept: ["ゆうゆう"], hint: "ジジーロン"},
+        { display: "ゆめうつつポケモン", accept: ["ゆめうつつ"], hint: "ムシャーナ、ネッコアラ"},
+        { display: "ゆめくいポケモン", accept: ["ゆめくい"], hint: "ムンナ"},
+        { display: "ようくんポケモン", accept: ["ようくん"], hint: "チゴラス"},
+        { display: "ようちゅうポケモン", accept: ["ようちゅう"], hint: "アゴジムシ、サッチムシ"},
+        { display: "よくせいポケモン", accept: ["よくせい"], hint: "ニャオニクス"},
+        { display: "よくばりポケモン", accept: ["よくばり"], hint: "ヨクバリス"},
+        { display: "らいげきポケモン", accept: ["らいげき"], hint: "ボルトロス"},
+        { display: "らいでんポケモン", accept: ["らいでん"], hint: "ゼブライカ"},
+        { display: "ライドポケモン", accept: ["らいど"], hint: "メェークル、ゴーゴート、モトトカゲ"},
+        { display: "ラッコポケモン", accept: ["らっこ"], hint: "ミジュマル"},
+        { display: "ラッパぐちポケモン", accept: ["らっぱぐち"], hint: "ケララッパ"},
+        { display: "ランチャーポケモン", accept: ["らんちゃー"], hint: "ブロスター"},
+        { display: "ランプポケモン", accept: ["らんぷ"], hint: "ランプラー"},
+        { display: "らんぼうポケモン", accept: ["らんぼう"], hint: "バスラオ、ジヘッド"},
+        { display: "りくくじらポケモン", accept: ["りくくじら"], hint: "アルクジラ、ハルクジラ"},
+        { display: "りゅうぎょくポケモン", accept: ["りゅうぎょく"], hint: "レジドラゴ"},
+        { display: "りんごあめポケモン", accept: ["りんごあめ"], hint: "カミッチュ"},
+        { display: "りんごオロチポケモン", accept: ["りんごおろち"], hint: "カミツオロチ"},
+        { display: "りんごぐらしポケモン", accept: ["りんごぐらし"], hint: "カジッチュ"},
+        { display: "りんごじるポケモン", accept: ["りんごじる"], hint: "タルップル"},
+        { display: "りんごばねポケモン", accept: ["りんごばね"], hint: "アップリュー"},
+        { display: "りんぷんポケモン", accept: ["りんぷん"], hint: "ビビヨン"},
+        { display: "れいこくポケモン", accept: ["れいこく"], hint: "レパルダス"},
+        { display: "レスリングポケモン", accept: ["れすりんぐ"], hint: "ルチャブル"},
+        { display: "れっかポケモン", accept: ["れっか"], hint: "ファイアロー"},
+        { display: "レッスンポケモン", accept: ["れっすん"], hint: "ウェルカモ"},
+        { display: "レドームポケモン", accept: ["れどーむ"], hint: "レドームシ"},
+        { display: "れんけいポケモン", accept: ["れんけい"], hint: "ナゲツケサル"},
+        { display: "ロイヤルポケモン", accept: ["ろいやる"], hint: "ジャローダ"},
+        { display: "ろうそくポケモン", accept: ["ろうそく"], hint: "ヒトモシ"},
+        { display: "ろうぼくポケモン", accept: ["ろうぼく"], hint: "オーロット"},
+        { display: "わかごまポケモン", accept: ["わかごま"], hint: "ケルディオ"},
+        { display: "わかじしポケモン", accept: ["わかじし"], hint: "シシコ"},
+        { display: "わかぞうポケモン", accept: ["わかぞう"], hint: "オラチフ"},
+        { display: "わたあめポケモン", accept: ["わたあめ"], hint: "ペロッパフ"},
+        { display: "わたかざりポケモン", accept: ["わたかざり"], hint: "ワタシラガ"},
+        { display: "わたたまポケモン", accept: ["わたたま"], hint: "モンメン"},
+        { display: "わるぎつねポケモン", accept: ["わるぎつね"], hint: "ゾロア"},
+        { display: "わるざるポケモン", accept: ["わるざる"], hint: "ザルード"},    ];
+
+    let foundCount = 0;
+    let isGameOver = false;
+    let answeredIndices = new Set();
+
+    const input = document.getElementById('answerInput');
+    const remainingText = document.getElementById('remaining');
+    const totalText = document.getElementById('total');
+    const listContainer = document.getElementById('answerList');
+    const messageEl = document.getElementById('message');
+    const giveupBtn = document.getElementById('giveupBtn');
+    const retryBtn = document.getElementById('retryBtn');
+    const limitFill = document.getElementById('limitFill');
+    const gaugeWrapper = document.getElementById('gaugeWrapper');
+    const percentDisplay = document.getElementById('progressPercent');
+
+    function updateLimitGauge() {
+        const percent = Math.floor((foundCount / quizData.length) * 100);
+        if(limitFill) limitFill.style.width = percent + "%";
+        if(percentDisplay) {
+            percentDisplay.textContent = (foundCount === quizData.length) ? "100%" : percent + "%";
+        }
+
+        if (foundCount === quizData.length && quizData.length > 0) {
+            gaugeWrapper.classList.add('limit-max');
+        } else {
+            gaugeWrapper.classList.remove('limit-max');
+        }
+    }
+
+    function init() {
+        foundCount = 0;
+        isGameOver = false;
+        answeredIndices.clear();
+        listContainer.innerHTML = '';
+        input.disabled = false;
+        input.value = '';
+        input.placeholder = config.placeholderNormal;
+        giveupBtn.style.display = 'inline-block';
+        retryBtn.style.display = 'none';
+        remainingText.textContent = quizData.length;
+        totalText.textContent = quizData.length;
+        messageEl.textContent = '';
+
+        quizData.forEach((item, index) => {
+            const div = document.createElement('div');
+            div.className = 'item';
+            div.id = 'target-' + index;
+            div.innerHTML = `<div class="answer-text">${item.hint}</div>`;
+            listContainer.appendChild(div);
+        });
+
+        loadProgress();
+        updateLimitGauge();
+    }
+
+    function loadProgress() {
+        const savedData = localStorage.getItem(config.storageKey);
+        if (savedData) {
+            const savedIndices = JSON.parse(savedData);
+            savedIndices.forEach(index => {
+                if (index < quizData.length) {
+                    answeredIndices.add(index);
+                    updateItemDisplay(index, true);
+                    foundCount++;
+                }
+            });
+            remainingText.textContent = quizData.length - foundCount;
+            if (foundCount > 0) showMessage("レポートから つづきを はじめるよ", "#4caf50");
+            if (foundCount === quizData.length) finishGame("コンプリート！", "#ff9800");
+        }
+        updateLimitGauge();
+    }
+
+    function saveProgress() {
+        const dataArray = Array.from(answeredIndices);
+        localStorage.setItem(config.storageKey, JSON.stringify(dataArray));
+    }
+
+    function clearProgress() {
+        localStorage.removeItem(config.storageKey);
+    }
+
+    input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !isGameOver) {
+            const val = input.value.trim();
+            if (val === "") return;
+            let targetIndex = quizData.findIndex(item => item.accept.includes(val));
+
+            if (targetIndex !== -1) {
+                if (answeredIndices.has(targetIndex)) {
+                    showMessage("もう つかまえているよ", "#ffcc00");
+                    document.getElementById('target-' + targetIndex).scrollIntoView({ behavior: 'smooth', block: 'center' });
+                } else {
+                    answeredIndices.add(targetIndex);
+                    updateItemDisplay(targetIndex, true);
+                    foundCount++;
+                    remainingText.textContent = quizData.length - foundCount;
+                    showMessage("データが　新しく　ポケモン図鑑に　登録されます", "#4caf50");
+                    saveProgress();
+                    updateLimitGauge();
+                    if (foundCount === quizData.length) finishGame("ぜんもんせいかい！ おめでとう！", "#ff9800");
+                }
+            } else {
+                showMessage("だめだ！　ポケモンが　ボールから　出てしまった！", "#e91e63");
+            }
+            input.value = '';
+        }
+    });
+
+    function updateItemDisplay(index, isCorrect) {
+        const targetEl = document.getElementById('target-' + index);
+        const data = quizData[index];
+        targetEl.innerHTML = `
+            <div class="hint-text">${data.hint}</div>
+            <div class="answer-text">${data.display}</div>
+        `;
+        
+        if (isCorrect) {
+            targetEl.classList.add('found');
+            targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else {
+            targetEl.classList.add('missed');
+        }
+    }
+
+    giveupBtn.addEventListener('click', () => {
+        if(confirm("あきらめますか？")) {
+            revealAllAnswers();
+            finishGame("つぎは がんばろう！", "#777");
+        }
+    });
+
+    retryBtn.addEventListener('click', () => {
+        if(confirm("進行状況をリセットして最初から遊びますか？")) {
+            clearProgress();
+            init();
+        }
+    });
+
+    function revealAllAnswers() {
+        quizData.forEach((item, index) => {
+            if (!answeredIndices.has(index)) {
+                updateItemDisplay(index, false);
+            }
+        });
+    }
+
+    function finishGame(msg, color) {
+        isGameOver = true;
+        input.disabled = true;
+        input.placeholder = config.placeholderGameOver;
+        input.value = '';
+        giveupBtn.style.display = 'none';
+        retryBtn.style.display = 'inline-block';
+        showMessage(msg, color);
+        updateLimitGauge();
+    }
+
+    function showMessage(text, color) {
+        messageEl.textContent = text;
+        messageEl.style.color = color;
+        if (!isGameOver) {
+            setTimeout(() => { if (messageEl.textContent === text) messageEl.textContent = ""; }, 1500);
+        }
+    }
+
+    init();
+</script>
+
+</body>
+</html>
