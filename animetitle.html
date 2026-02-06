@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>アニメタイトルロゴクイズ</title>
+    <style>
+        :root {
+            --primary-red: #e60012;
+            --bg-gray: #f5f5f5;
+            --border-color: #ddd;
+            --text-main: #333;
+        }
+
+        body { 
+            font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif; 
+            text-align: center; 
+            padding: 0; 
+            background-color: var(--bg-gray); 
+            color: var(--text-main); 
+            margin: 0; 
+        }
+
+        .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            background: #fff; 
+            padding: 20px; 
+            min-height: 100vh;
+            box-shadow: 0 0 10px rgba(0,0,0,0.05);
+        }
+
+        .sticky-header { 
+            position: sticky; 
+            top: 0; 
+            background: #fff; 
+            padding: 20px 0; 
+            z-index: 100; 
+            border-bottom: 2px solid var(--primary-red); 
+            margin-bottom: 20px; 
+        }
+
+        h2 { margin: 0 0 10px 0; color: var(--primary-red); font-size: 1.5em; }
+
+        .limit-gauge-outer {
+            max-width: 600px;
+            margin: 10px auto;
+            background: #eee;
+            border-radius: 20px;
+            overflow: hidden;
+            height: 12px;
+        }
+
+        #limitFill {
+            height: 100%;
+            width: 0%;
+            background: var(--primary-red);
+            transition: width 0.4s ease;
+        }
+
+        .status { margin: 10px 0; font-weight: bold; font-size: 1em; color: #666; }
+        #message { height: 24px; font-weight: bold; margin-bottom: 10px; font-size: 1.1em; }
+
+        .btn { 
+            padding: 10px 20px; font-size: 14px; cursor: pointer; border-radius: 4px; 
+            border: none; background: #666; color: white; margin: 0 5px;
+        }
+        .btn.giveup-btn { background: #999; }
+
+        .list { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); 
+            gap: 20px; margin-top: 20px; 
+        }
+
+        .item { 
+            background: #fff; border: 1px solid var(--border-color); 
+            display: flex; flex-direction: column; padding-bottom: 10px;
+            transition: all 0.3s;
+        }
+
+        .item.found { border: 2px solid var(--primary-red); }
+
+        .hint-image img {
+            width: 100%;
+            height: 160px;
+            object-fit: contain; 
+            background: #fdfdfd; 
+        }
+
+        /* 個別回答エリア */
+        .answer-container {
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center; 
+            gap: 8px;
+            min-height: 50px;
+        }
+
+        /* 各カードの入力欄 */
+        .card-input {
+            width: 80%;
+            padding: 8px;
+            font-size: 13px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            text-align: center;
+            outline: none;
+        }
+        .card-input:focus { border-color: var(--primary-red); }
+
+        .mini-hint-thumb {
+            width: 35px;
+            height: 35px;
+            object-fit: contain;
+            border: 1px solid #eee;
+            background: #fff;
+        }
+
+        .answer-text { 
+            font-size: 13px; 
+            font-weight: bold;
+            text-align: center; 
+            line-height: 1.4;
+        }
+
+        .item.found .answer-text { color: var(--primary-red); }
+        .item.missed .answer-text { 
+            color: #999; 
+            text-decoration: line-through; 
+            text-decoration-color: #666;
+        }
+
+        @media (max-width: 600px) {
+            .list { grid-template-columns: 1fr 1fr; gap: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="sticky-header">
+        <h2>アニメタイトルロゴクイズ</h2>
+        <div class="limit-gauge-outer">
+            <div id="limitFill"></div>
+        </div>
+        <div class="status">残り <span id="remaining">--</span> / 全 <span id="total">--</span> 問</div>
+        <div id="message"></div>
+        <button class="btn giveup-btn" id="giveupBtn">ギブアップ</button>
+        <button class="btn retry-btn" id="retryBtn" style="display:none;">もう一度</button>
+    </div>
+    <div class="list" id="answerList"></div>
+</div>
+
+<script>
+    const config = {
+        storageKey: "quiz_save_" + document.title
+    };
+
+    const quizData = [
+        { 
+            display: "ああっ女神さまっ", 
+            accept: ["ああっ女神さまっ", "ああっめがみさまっ"], 
+            image: "animetitle/001_q.jpg", 
+            foundImage: "animetitle/001_a.jpg" 
+        },
+        { 
+            display: "宇宙よりも遠い場所", 
+            accept: ["宇宙よりも遠い場所", "そらよりもとおいばしょ"], 
+            image: "animetitle/002_q.jpg", 
+            foundImage: "animetitle/002_a.jpg" 
+        },
+        { 
+            display: "るろうに剣心 -明治剣客浪漫譚-", 
+            accept: ["るろうに剣心明治剣客浪漫譚", "るろうにけんしん", "るろうにけんしんめいじけんかくろまんたん"], 
+            image: "animetitle/003_q.jpg", 
+            foundImage: "animetitle/003_a.jpg" 
+        },
+        { 
+            display: "みつどもえ", 
+            accept: ["みつどもえ"], 
+            image: "animetitle/004_q.jpg", 
+            foundImage: "animetitle/004_a.jpg" 
+        },
+        { 
+            display: "そらのおとしもの", 
+            accept: ["そらのおとしもの"], 
+            image: "animetitle/005_q.jpg", 
+            foundImage: "animetitle/005_a.jpg" 
+        },
+        { 
+            display: "かんなぎ", 
+            accept: ["かんなぎ"], 
+            image: "animetitle/006_q.jpg", 
+            foundImage: "animetitle/006_a.jpg" 
+        },
+        { 
+            display: "ロウきゅーぶ！", 
+            accept: ["ロウきゅーぶ", "ろうきゅーぶ"], 
+            image: "animetitle/007_q.jpg", 
+            foundImage: "animetitle/007_a.jpg" 
+        },
+        { 
+            display: "終末トレインどこへいく？", 
+            accept: ["終末トレインどこへいく", "しゅうまつとれいんどこへいく"], 
+            image: "animetitle/008_q.jpg", 
+            foundImage: "animetitle/008_a.jpg" 
+        },
+        { 
+            display: "けいおん！", 
+            accept: ["けいおん"], 
+            image: "animetitle/009_q.jpg", 
+            foundImage: "animetitle/009_a.jpg" 
+        },
+        { 
+            display: "俺の妹がこんなに可愛いわけがない", 
+            accept: ["俺の妹がこんなに可愛いわけがない", "おれのいもうとがこんなにかわいいわけがない"], 
+            image: "animetitle/010_q.jpg", 
+            foundImage: "animetitle/010_a.jpg" 
+        },
+        { 
+            display: "小林さんちのメイドラゴン", 
+            accept: ["小林さんちのメイドラゴン", "こばやしさんちのめいどらごん"], 
+            image: "animetitle/011_q.jpg", 
+            foundImage: "animetitle/011_a.jpg" 
+        },
+        { 
+            display: "お兄ちゃんはおしまい！", 
+            accept: ["お兄ちゃんはおしまい", "おにいちゃんはおしまい"], 
+            image: "animetitle/012_q.jpg", 
+            foundImage: "animetitle/012_a.jpg" 
+        },
+        { 
+            display: "沖縄で好きになった子が方言すぎてツラすぎる", 
+            accept: ["沖縄で好きになった子が方言すぎてツラすぎる", "おきなわですきになったこがほうげんすぎてつらすぎる"], 
+            image: "animetitle/013_q.jpg", 
+            foundImage: "animetitle/013_a.jpg" 
+        },
+        { 
+            display: "笑ゥせぇるすまん", 
+            accept: ["笑ゥせぇるすまん", "わらぅせぇるすまん", "わらうせえるすまん"], 
+            image: "animetitle/014_q.jpg", 
+            foundImage: "animetitle/014_a.jpg" 
+        },
+        { 
+            display: "それでも町は廻っている", 
+            accept: ["それでも町は廻っている", "それでもまちはまわっている"], 
+            image: "animetitle/015_q.jpg", 
+            foundImage: "animetitle/015_a.jpg" 
+        },
+        { 
+            display: "中二病でも恋がしたい！", 
+            accept: ["中二病でも恋がしたい", "ちゅうにびょうでもこいがしたい"], 
+            image: "animetitle/016_q.jpg", 
+            foundImage: "animetitle/016_a.jpg" 
+        },
+        { 
+            display: "ちいかわ", 
+            accept: ["ちいかわ"], 
+            image: "animetitle/017_q.jpg", 
+            foundImage: "animetitle/017_a.jpg" 
+        },
+        { 
+            display: "魔法使いプリキュア！", 
+            accept: ["魔法使いプリキュア", "まほうつかいぷりきゅあ"], 
+            image: "animetitle/018_q.jpg", 
+            foundImage: "animetitle/018_a.jpg" 
+        },
+        { 
+            display: "終末なにしてますか? 忙しいですか? 救ってもらっていいですか?！", 
+            accept: ["終末なにしてますか忙しいですか救ってもらっていいですか", "しゅうまつなにしてますかいそがしいですかすくってもらっていいですか"], 
+            image: "animetitle/019_q.jpg", 
+            foundImage: "animetitle/019_a.jpg" 
+        },
+        { 
+            display: "忍者と殺し屋のふたりぐらし", 
+            accept: ["忍者と殺し屋のふたりぐらし", "にんじゃところしやのふたりぐらし"], 
+            image: "animetitle/020_q.jpg", 
+            foundImage: "animetitle/020_a.jpg" 
+        },
+        { 
+            display: "お兄ちゃんのことなんかぜんぜん好きじゃないんだからねっ!!", 
+            accept: ["お兄ちゃんのことなんかぜんぜん好きじゃないんだからねっ", "おにいちゃんのことなんかぜんぜんすきじゃないんだからねっ"], 
+            image: "animetitle/021_q.jpg", 
+            foundImage: "animetitle/021_a.jpg" 
+        },
+        { 
+            display: "ぷにるはかわいいスライム", 
+            accept: ["ぷにるはかわいいスライム", "ぷにるはかわいいすらいむ"], 
+            image: "animetitle/022_q.jpg", 
+            foundImage: "animetitle/022_a.jpg" 
+        },
+        { 
+            display: "ぬきたし THE ANIMATION", 
+            accept: ["ぬきたし", "ぬきげーみたいなしまにすんでるわたしはどうすりゃいいですか"], 
+            image: "animetitle/023_q.jpg", 
+            foundImage: "animetitle/023_a.jpg" 
+        },
+        { 
+            display: "はねバド！", 
+            accept: ["はねバド", "はねばど"], 
+            image: "animetitle/024_q.jpg", 
+            foundImage: "animetitle/024_a.jpg" 
+        },
+        { 
+            display: "ようこそ実力至上主義の教室へ", 
+            accept: ["ようこそ実力至上主義の教室へ", "ようこそじつりょくしじょうしゅぎのきょうしつへ"], 
+            image: "animetitle/025_q.jpg", 
+            foundImage: "animetitle/025_a.jpg" 
+        },
+        { 
+            display: "日々は過ぎれど飯うまし", 
+            accept: ["日々は過ぎれど飯うまし", "ひびはすぎれどめしうまし"], 
+            image: "animetitle/026_q.jpg", 
+            foundImage: "animetitle/026_a.jpg" 
+        },
+        { 
+            display: "ひろがるスカイ！プリキュア", 
+            accept: ["ひろがるスカイプリキュア", "ひろがるすかいぷりきゅあ"], 
+            image: "animetitle/027_q.jpg", 
+            foundImage: "animetitle/027_a.jpg" 
+        },
+        { 
+            display: "よふかしのうた", 
+            accept: ["よふかしのうた"], 
+            image: "animetitle/028_q.jpg", 
+            foundImage: "animetitle/028_a.jpg" 
+        },
+        { 
+            display: "へうげもの", 
+            accept: ["へうげもの"], 
+            image: "animetitle/029_q.jpg", 
+            foundImage: "animetitle/029_a.jpg" 
+        },
+        { 
+            display: "まほろまてぃっく", 
+            accept: ["まほろまてぃっく"], 
+            image: "animetitle/030_q.jpg", 
+            foundImage: "animetitle/030_a.jpg" 
+        },
+        { 
+            display: "たまこまーけっと", 
+            accept: ["たまこまーけっと"], 
+            image: "animetitle/031_q.jpg", 
+            foundImage: "animetitle/031_a.jpg" 
+        },
+        { 
+            display: "ぽんのみち", 
+            accept: ["ぽんのみち"], 
+            image: "animetitle/032_q.jpg", 
+            foundImage: "animetitle/032_a.jpg" 
+        },
+        { 
+            display: "えむえむっ！", 
+            accept: ["えむえむっ"], 
+            image: "animetitle/033_q.jpg", 
+            foundImage: "animetitle/033_a.jpg" 
+        },
+        { 
+            display: "もめんたりー・リリィ", 
+            accept: ["もめんたりーリリィ", "もめんたりーりりぃ"], 
+            image: "animetitle/034_q.jpg", 
+            foundImage: "animetitle/034_a.jpg" 
+        },
+        { 
+            display: "けものフレンズ", 
+            accept: ["けものフレンズ", "けものふれんず"], 
+            image: "animetitle/035_q.jpg", 
+            foundImage: "animetitle/035_a.jpg" 
+        },
+        { 
+            display: "超かぐや姫！", 
+            accept: ["超かぐや姫", "ちょうかぐやひめ"], 
+            image: "animetitle/036_q.jpg", 
+            foundImage: "animetitle/036_a.jpg" 
+        },
+        { 
+            display: "わんだふるぷりきゅあ！", 
+            accept: ["わんだふるぷりきゅあ", "わんだふるぷりきゅあ"], 
+            image: "animetitle/037_q.jpg", 
+            foundImage: "animetitle/037_a.jpg" 
+        },
+        { 
+            display: "うまよん", 
+            accept: ["うまよん"], 
+            image: "animetitle/038_q.jpg", 
+            foundImage: "animetitle/038_a.jpg" 
+        },
+        { 
+            display: "道産子ギャルはなまらめんこい", 
+            accept: ["道産子ギャルはなまらめんこい", "どさんこぎゃるはなまらめんこい"], 
+            image: "animetitle/041_q.jpg", 
+            foundImage: "animetitle/041_a.jpg" 
+        },
+        { 
+            display: "のんのんびより", 
+            accept: ["のんのんびより"], 
+            image: "animetitle/042_q.jpg", 
+            foundImage: "animetitle/042_a.jpg" 
+        },
+        { 
+            display: "負けヒロインが多すぎる！", 
+            accept: ["負けヒロインが多すぎる", "まけひろいんがおおすぎる"], 
+            image: "animetitle/043_q.jpg", 
+            foundImage: "animetitle/043_a.jpg" 
+        },
+        { 
+            display: "魔法少女にあこがれて", 
+            accept: ["魔法少女にあこがれて", "まほうしょうじょにあこがれて"], 
+            image: "animetitle/044_q.jpg", 
+            foundImage: "animetitle/044_a.jpg" 
+        },
+        { 
+            display: "ぼっち・ざ・ろっく！", 
+            accept: ["ぼっち・ざ・ろっく", "ぼっちざろっく"], 
+            image: "animetitle/045_q.jpg", 
+            foundImage: "animetitle/045_a.jpg" 
+        },
+        { 
+            display: "うたわれるもの", 
+            accept: ["うたわれるもの"], 
+            image: "animetitle/046_q.jpg", 
+            foundImage: "animetitle/046_a.jpg" 
+        },
+        { 
+            display: "死亡遊戯で飯を食う。", 
+            accept: ["死亡遊戯で飯を食う", "しぼうゆうぎでめしをくう"], 
+            image: "animetitle/047_q.jpg", 
+            foundImage: "animetitle/047_a.jpg" 
+        },
+        { 
+            display: "しかのこのこのここしたんたん", 
+            accept: ["しかのこのこのここしたんたん"], 
+            image: "animetitle/048_q.jpg", 
+            foundImage: "animetitle/048_a.jpg" 
+        },
+     ];
+
+    let foundCount = 0;
+    let isGameOver = false;
+    let answeredIndices = new Set();
+
+    const remainingText = document.getElementById('remaining');
+    const totalText = document.getElementById('total');
+    const listContainer = document.getElementById('answerList');
+    const messageEl = document.getElementById('message');
+    const giveupBtn = document.getElementById('giveupBtn');
+    const retryBtn = document.getElementById('retryBtn');
+    const limitFill = document.getElementById('limitFill');
+
+    function updateLimitGauge() {
+        const percent = (foundCount / quizData.length) * 100;
+        if(limitFill) limitFill.style.width = percent + "%";
+    }
+
+    function init() {
+        foundCount = 0;
+        isGameOver = false;
+        answeredIndices.clear();
+        listContainer.innerHTML = '';
+        giveupBtn.style.display = 'inline-block';
+        retryBtn.style.display = 'none';
+        remainingText.textContent = quizData.length;
+        totalText.textContent = quizData.length;
+        messageEl.textContent = '';
+
+        quizData.forEach((item, index) => {
+            const div = document.createElement('div');
+            div.className = 'item';
+            div.id = 'target-' + index;
+            // 初期状態は入力欄を表示
+            div.innerHTML = `
+                <div class="hint-image"><img src="${item.image}" alt=""></div>
+                <div class="answer-container" id="container-${index}">
+                    <input type="text" class="card-input" placeholder="作品名は？" data-index="${index}">
+                </div>
+            `;
+            listContainer.appendChild(div);
+        });
+
+        // 各入力欄にイベント設定
+        document.querySelectorAll('.card-input').forEach(input => {
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') checkAnswer(input);
+            });
+        });
+
+        loadProgress();
+        updateLimitGauge();
+    }
+
+    function checkAnswer(inputEl) {
+        if (isGameOver) return;
+        const index = parseInt(inputEl.dataset.index);
+        const val = inputEl.value.trim();
+        if (val === "") return;
+
+        const data = quizData[index];
+        if (data.accept.includes(val)) {
+            answeredIndices.add(index);
+            updateItemDisplay(index, true);
+            foundCount++;
+            remainingText.textContent = quizData.length - foundCount;
+            saveProgress();
+            updateLimitGauge();
+            showMessage("正解！", "#e60012");
+            if (foundCount === quizData.length) finishGame("全問正解！おめでとうございます！", "#e60012");
+        } else {
+            inputEl.value = '';
+            inputEl.placeholder = "不正解！";
+            setTimeout(() => { inputEl.placeholder = "作品名は？"; }, 1000);
+        }
+    }
+
+    function updateItemDisplay(index, isFoundByPlayer) {
+        const targetEl = document.getElementById('target-' + index);
+        const container = document.getElementById('container-' + index);
+        const data = quizData[index];
+        if(!targetEl || !container) return;
+        
+        // 画像を正解画像に
+        targetEl.querySelector('.hint-image img').src = data.foundImage;
+
+        // 入力欄を消して正解テキストを表示
+        container.innerHTML = `
+            <img src="${data.image}" class="mini-hint-thumb" alt="ヒント">
+            <div class="answer-text">${data.display}</div>
+        `;
+        
+        if (isFoundByPlayer) {
+            targetEl.classList.add('found');
+        } else {
+            targetEl.classList.add('missed');
+        }
+    }
+
+    function showMessage(text, color) {
+        messageEl.textContent = text;
+        messageEl.style.color = color;
+        if (!isGameOver) {
+            setTimeout(() => { if (messageEl.textContent === text) messageEl.textContent = ""; }, 1500);
+        }
+    }
+
+    function saveProgress() {
+        localStorage.setItem(config.storageKey, JSON.stringify(Array.from(answeredIndices)));
+    }
+
+    function loadProgress() {
+        const savedData = localStorage.getItem(config.storageKey);
+        if (savedData) {
+            const savedIndices = JSON.parse(savedData);
+            savedIndices.forEach(index => {
+                if (index < quizData.length) {
+                    answeredIndices.add(index);
+                    updateItemDisplay(index, true);
+                    foundCount++;
+                }
+            });
+            remainingText.textContent = quizData.length - foundCount;
+        }
+    }
+
+    giveupBtn.addEventListener('click', () => {
+        isGameOver = true;
+        quizData.forEach((item, index) => {
+            if (!answeredIndices.has(index)) updateItemDisplay(index, false);
+        });
+        finishGame("答え合わせ", "#666");
+    });
+
+    retryBtn.addEventListener('click', () => {
+        if(confirm("リセットしますか？")) {
+            localStorage.removeItem(config.storageKey);
+            init();
+        }
+    });
+
+    function finishGame(msg, color) {
+        isGameOver = true;
+        document.querySelectorAll('.card-input').forEach(i => i.disabled = true);
+        giveupBtn.style.display = 'none';
+        retryBtn.style.display = 'inline-block';
+        showMessage(msg, color);
+    }
+
+    init();
+</script>
+
+</body>
+</html>
