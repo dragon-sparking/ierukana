@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>アニメタイトルロゴクイズ3</title>
+    <style>
+        :root {
+            --primary-red: #e60012;
+            --bg-gray: #f5f5f5;
+            --border-color: #ddd;
+            --text-main: #333;
+        }
+
+        body { 
+            font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif; 
+            text-align: center; 
+            padding: 0; 
+            background-color: var(--bg-gray); 
+            color: var(--text-main); 
+            margin: 0; 
+        }
+
+        .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            background: #fff; 
+            padding: 20px; 
+            min-height: 100vh;
+            box-shadow: 0 0 10px rgba(0,0,0,0.05);
+        }
+
+        .sticky-header { 
+            position: sticky; 
+            top: 0; 
+            background: #fff; 
+            padding: 20px 0; 
+            z-index: 100; 
+            border-bottom: 2px solid var(--primary-red); 
+            margin-bottom: 20px; 
+        }
+
+        h2 { margin: 0 0 10px 0; color: var(--primary-red); font-size: 1.5em; }
+
+        .limit-gauge-outer {
+            max-width: 600px;
+            margin: 10px auto;
+            background: #eee;
+            border-radius: 20px;
+            overflow: hidden;
+            height: 12px;
+        }
+
+        #limitFill {
+            height: 100%;
+            width: 0%;
+            background: var(--primary-red);
+            transition: width 0.4s ease;
+        }
+
+        .status { margin: 10px 0; font-weight: bold; font-size: 1em; color: #666; }
+        #message { height: 24px; font-weight: bold; margin-bottom: 10px; font-size: 1.1em; }
+
+        .btn { 
+            padding: 10px 20px; font-size: 14px; cursor: pointer; border-radius: 4px; 
+            border: none; background: #666; color: white; margin: 0 5px;
+        }
+        .btn.giveup-btn { background: #999; }
+
+        .list { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); 
+            gap: 20px; margin-top: 20px; 
+        }
+
+        .item { 
+            background: #fff; border: 1px solid var(--border-color); 
+            display: flex; flex-direction: column; padding-bottom: 10px;
+            transition: all 0.3s;
+        }
+
+        .item.found { border: 2px solid var(--primary-red); }
+
+        .hint-image img {
+            width: 100%;
+            height: 160px;
+            object-fit: contain; 
+            background: #fdfdfd; 
+        }
+
+        /* 個別回答エリア */
+        .answer-container {
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center; 
+            gap: 8px;
+            min-height: 50px;
+        }
+
+        /* 各カードの入力欄 */
+        .card-input {
+            width: 80%;
+            padding: 8px;
+            font-size: 13px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            text-align: center;
+            outline: none;
+        }
+        .card-input:focus { border-color: var(--primary-red); }
+
+        .mini-hint-thumb {
+            width: 35px;
+            height: 35px;
+            object-fit: contain;
+            border: 1px solid #eee;
+            background: #fff;
+        }
+
+        .answer-text { 
+            font-size: 13px; 
+            font-weight: bold;
+            text-align: center; 
+            line-height: 1.4;
+        }
+
+        .item.found .answer-text { color: var(--primary-red); }
+        .item.missed .answer-text { 
+            color: #999; 
+            text-decoration: line-through; 
+            text-decoration-color: #666;
+        }
+
+        @media (max-width: 600px) {
+            .list { grid-template-columns: 1fr 1fr; gap: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="sticky-header">
+        <h2>アニメタイトルロゴクイズ3</h2>
+        <div class="limit-gauge-outer">
+            <div id="limitFill"></div>
+        </div>
+        <div class="status">残り <span id="remaining">--</span> / 全 <span id="total">--</span> 問</div>
+        <div id="message"></div>
+        <button class="btn giveup-btn" id="giveupBtn">ギブアップ</button>
+        <button class="btn retry-btn" id="retryBtn" style="display:none;">もう一度</button>
+    </div>
+    <div class="list" id="answerList"></div>
+</div>
+
+<script>
+    const config = {
+        storageKey: "quiz_save_" + document.title
+    };
+
+    const quizData = [
+        { 
+            display: "SHIROBAKO", 
+            accept: ["SHIROBAKO", "しろばこ"], 
+            image: "animetitle3/001_q.jpg", 
+            foundImage: "animetitle3/001_a.jpg" 
+        },
+        { 
+            display: "BLOOD+", 
+            accept: ["BLOOD+", "ぶらっどぷらす"], 
+            image: "animetitle3/002_q.jpg", 
+            foundImage: "animetitle3/002_a.jpg" 
+        },
+        { 
+            display: "Re:CREATORS", 
+            accept: ["Re:CREATORS", "りくりえいたーず", "れくりえいたーず"], 
+            image: "animetitle3/003_q.jpg", 
+            foundImage: "animetitle3/003_a.jpg" 
+        },
+        { 
+            display: "DOG DAYS", 
+            accept: ["DOGDAYS", "どっぐでいず"], 
+            image: "animetitle3/004_q.jpg", 
+            foundImage: "animetitle3/004_a.jpg" 
+        },
+        { 
+            display: "WIND BREAKER", 
+            accept: ["WIND BREAKER", "うぃんどぶれーかー"], 
+            image: "animetitle3/005_q.jpg", 
+            foundImage: "animetitle3/005_a.jpg" 
+        },
+        { 
+            display: "SHUFFLE!", 
+            accept: ["SHUFFLE", "しゃっふる"], 
+            image: "animetitle3/006_q.jpg", 
+            foundImage: "animetitle3/006_a.jpg" 
+        },
+        { 
+            display: "NEW GAME!", 
+            accept: ["NEW GAME", "にゅーげーむ"], 
+            image: "animetitle3/007_q.jpg", 
+            foundImage: "animetitle3/007_a.jpg" 
+        },
+        { 
+            display: "SHY", 
+            accept: ["SHY", "しゃい"], 
+            image: "animetitle3/008_q.jpg", 
+            foundImage: "animetitle3/008_a.jpg" 
+        },
+        { 
+            display: "ONE PIECE", 
+            accept: ["ONEPIECE", "わんぴーす"], 
+            image: "animetitle3/009_q.jpg", 
+            foundImage: "animetitle3/009_a.jpg" 
+        },
+        { 
+            display: "神田川JET GIRLS", 
+            accept: ["神田川JETGIRLS", "かんだがわじぇっとがーるず"], 
+            image: "animetitle3/010_q.jpg", 
+            foundImage: "animetitle3/010_a.jpg" 
+        },
+        { 
+            display: "DARKER THAN BLACK -黒の契約者-", 
+            accept: ["DARKER THAN BLACK黒の契約者", "だーかーざんぶらっくくろのけいやくしゃ", "だーかーざんぶらっく"], 
+            image: "animetitle3/011_q.jpg", 
+            foundImage: "animetitle3/011_a.jpg" 
+        },
+        { 
+            display: "FAIRY TAIL", 
+            accept: ["FAIRYTAIL", "ふぇありーている"], 
+            image: "animetitle3/012_q.jpg", 
+            foundImage: "animetitle3/012_a.jpg" 
+        },
+        { 
+            display: "ドラゴンボールDAIMA", 
+            accept: ["ドラゴンボールDAIMA", "どらごんぼーるだいま"], 
+            image: "animetitle3/013_q.jpg", 
+            foundImage: "animetitle3/013_a.jpg" 
+        },
+        { 
+            display: "NieR:Automata Ver1.1a", 
+            accept: ["NieR:Automata", "にーあおーとまた", "にーあ"], 
+            image: "animetitle3/014_q.jpg", 
+            foundImage: "animetitle3/014_a.jpg" 
+        },
+        { 
+            display: "To LOVEる -とらぶる- ダークネス", 
+            accept: ["ToLOVEるとらぶるダークネス", "とらぶるだーくねす"], 
+            image: "animetitle3/015_q.jpg", 
+            foundImage: "animetitle3/015_a.jpg" 
+        },
+        { 
+            display: "PSYCHO-PASS サイコパス", 
+            accept: ["PSYCHOPASS", "さいこぱす"], 
+            image: "animetitle3/016_q.jpg", 
+            foundImage: "animetitle3/016_a.jpg" 
+        },
+        { 
+            display: "機動戦士Gundam GQuuuuuuX", 
+            accept: ["機動戦士GundamGQuuuuuuX", "じーくあくす", "がんだむじーくあくす", "きどうせんしがんだむじーくあくす"], 
+            image: "animetitle3/017_q.jpg", 
+            foundImage: "animetitle3/017_a.jpg" 
+        },
+        { 
+            display: "Re:ゼロから始める異世界生活", 
+            accept: ["Reゼロから始める異世界生活", "りぜろ", "りぜろからはじめるいせかいせいかつ"], 
+            image: "animetitle3/018_q.jpg", 
+            foundImage: "animetitle3/018_a.jpg" 
+        },
+        { 
+            display: "SHAMAN KING", 
+            accept: ["SHAMANKING", "しゃーまんきんぐ"], 
+            image: "animetitle3/019_q.jpg", 
+            foundImage: "animetitle3/019_a.jpg" 
+        },
+        { 
+            display: "To Heart", 
+            accept: ["ToHeart", "とぅはーと"], 
+            image: "animetitle3/020_q.jpg", 
+            foundImage: "animetitle3/020_a.jpg" 
+        },
+        { 
+            display: "TIGER & BUNNY", 
+            accept: ["TIGERBUNNY", "たいがーあんどばにー", "たいばに"], 
+            image: "animetitle3/021_q.jpg", 
+            foundImage: "animetitle3/021_a.jpg" 
+        },
+        { 
+            display: "戦姫絶唱シンフォギアXV", 
+            accept: ["戦姫絶唱シンフォギアXV", "せんきぜっしょうしんふぉぎあえくしゔ", "せんきぜっしょうしんふぉぎあえくしヴ"], 
+            image: "animetitle3/022_q.jpg", 
+            foundImage: "animetitle3/022_a.jpg" 
+        },
+        { 
+            display: "YAWARA!", 
+            accept: ["YAWARA", "やわら"], 
+            image: "animetitle3/023_q.jpg", 
+            foundImage: "animetitle3/023_a.jpg" 
+        },
+        { 
+            display: "機動新世紀ガンダムX", 
+            accept: ["機動新世紀ガンダムX", "きどうしんせいきがんだむえっくす", "がんだむえっくす"], 
+            image: "animetitle3/024_q.jpg", 
+            foundImage: "animetitle3/024_a.jpg" 
+        },
+        { 
+            display: "SAKAMOTO DAYS", 
+            accept: ["SAKAMOTODAYS", "さかもとでいず"], 
+            image: "animetitle3/025_q.jpg", 
+            foundImage: "animetitle3/025_a.jpg" 
+        },
+        { 
+            display: "ドラゴンボールZ", 
+            accept: ["ドラゴンボールZ", "どらごんぼーるぜっと"], 
+            image: "animetitle3/026_q.jpg", 
+            foundImage: "animetitle3/026_a.jpg" 
+        },
+        { 
+            display: "Charlotte", 
+            accept: ["Charlotte", "しゃーろっと"], 
+            image: "animetitle3/027_q.jpg", 
+            foundImage: "animetitle3/027_a.jpg" 
+        },
+        { 
+            display: "Strawberry Panic", 
+            accept: ["StrawberryPanic", "すとろべりーぱにっく"], 
+            image: "animetitle3/028_q.jpg", 
+            foundImage: "animetitle3/028_a.jpg" 
+        },
+        { 
+            display: "ホリミヤ -piece-」公式サイト", 
+            accept: ["ホリミヤpiece", "ほりみや", "ほりみやぴーす"], 
+            image: "animetitle3/029_q.jpg", 
+            foundImage: "animetitle3/029_a.jpg" 
+        },
+        { 
+            display: "ViVid Strike!", 
+            accept: ["ViVid Strike", "ヴぃヴぃっどすとらいく", "ゔぃゔぃっどすとらいく"], 
+            image: "animetitle3/030_q.jpg", 
+            foundImage: "animetitle3/030_a.jpg" 
+        },
+        { 
+            display: "true tears", 
+            accept: ["truetears", "とぅるーてぃあーず"], 
+            image: "animetitle3/031_q.jpg", 
+            foundImage: "animetitle3/031_a.jpg" 
+        },
+        { 
+            display: "ef - a tale of memories.", 
+            accept: ["ef", "えふ"], 
+            image: "animetitle3/032_q.jpg", 
+            foundImage: "animetitle3/032_a.jpg" 
+        },
+        { 
+            display: "Fate/stay night", 
+            accept: ["Fatestaynight", "ふぇいとすていないと", "ふぇいと"], 
+            image: "animetitle3/033_q.jpg", 
+            foundImage: "animetitle3/033_a.jpg" 
+        },
+        { 
+            display: "キノの旅 the beautiful world", 
+            accept: ["キノの旅thebeautifulworld", "きののたび"], 
+            image: "animetitle3/034_q.jpg", 
+            foundImage: "animetitle3/034_a.jpg" 
+        },
+        { 
+            display: "Fate/Apocrypha", 
+            accept: ["FateApocrypha", "ふぇいとあぽくりふぁ", "ふぇいと", "あぽくりふぁ"], 
+            image: "animetitle3/035_q.jpg", 
+            foundImage: "animetitle3/035_a.jpg" 
+        },
+        { 
+            display: "THE IDOLM@STER", 
+            accept: ["THEIDOLM@STER", "あいます", "あいどるますたー"], 
+            image: "animetitle3/036_q.jpg", 
+            foundImage: "animetitle3/036_a.jpg" 
+        },
+        { 
+            display: "BanG Dream! Ave Mujica", 
+            accept: ["BanGDreamAveMujica", "あヴぇむじか", "あゔぇむじか", "ばんどりあヴぇむじか", "ばんどりあゔぇむじか"], 
+            image: "animetitle3/037_q.jpg", 
+            foundImage: "animetitle3/037_a.jpg" 
+        },
+        { 
+            display: "kiss×sis", 
+            accept: ["kiss×sis", "きすしす"], 
+            image: "animetitle3/038_q.jpg", 
+            foundImage: "animetitle3/038_a.jpg" 
+        },
+        { 
+            display: "Serial experiments lain", 
+            accept: ["Serialexperimentslain", "れいん", "しりあるえくすぺりめんつれいん"], 
+            image: "animetitle3/039_q.jpg", 
+            foundImage: "animetitle3/039_a.jpg" 
+        },
+        { 
+            display: "mono", 
+            accept: ["mono", "もの"], 
+            image: "animetitle3/040_q.jpg", 
+            foundImage: "animetitle3/040_a.jpg" 
+        },
+        { 
+            display: "Kanon", 
+            accept: ["Kanon", "かのん"], 
+            image: "animetitle3/041_q.jpg", 
+            foundImage: "animetitle3/041_a.jpg" 
+        },
+        { 
+            display: "SoltyRei", 
+            accept: ["SoltyRei", "そるてぃれい"], 
+            image: "animetitle3/042_q.jpg", 
+            foundImage: "animetitle3/042_a.jpg" 
+        },
+        { 
+            display: "takt op.Destiny", 
+            accept: ["taktop", "たくとおーぱす"], 
+            image: "animetitle3/043_q.jpg", 
+            foundImage: "animetitle3/043_a.jpg" 
+        },
+        { 
+            display: "D.Gray-man", 
+            accept: ["DGrayman", "でぃーぐれいまん", "でぃーぐれ"], 
+            image: "animetitle3/044_q.jpg", 
+            foundImage: "animetitle3/044_a.jpg" 
+        },
+        { 
+            display: "GetBackers-奪還屋-", 
+            accept: ["GetBackers奪還屋", "げっとばっかーず"], 
+            image: "animetitle3/045_q.jpg", 
+            foundImage: "animetitle3/045_a.jpg" 
+        },
+        { 
+            display: "D4DJ First Mix", 
+            accept: ["D4DJFirstMix", "D4DJ", "でぃーふぉーでぃーじぇー", "でぃーふぉーでぃーじぇーふぁーすとみっくす"], 
+            image: "animetitle3/046_q.jpg", 
+            foundImage: "animetitle3/046_a.jpg" 
+        },
+        { 
+            display: "Turkey!", 
+            accept: ["Turkey", "たーきー"], 
+            image: "animetitle3/047_q.jpg", 
+            foundImage: "animetitle3/047_a.jpg" 
+        },
+        { 
+            display: "カードファイト!! ヴァンガード Divinez", 
+            accept: ["カードファイトヴァンガード", "かーどふぁいとヴぁんがーど", "かーどふぁいとゔぁんがーど", "かーどふぁいとヴぁんがーどでぃヴぁいんず", "かーどふぁいとゔぁんがーどでぃゔぁいんず", "ヴぁんがーど", "ゔぁんがーど"], 
+            image: "animetitle3/048_q.jpg", 
+            foundImage: "animetitle3/048_a.jpg" 
+        },
+        { 
+            display: "Rewrite", 
+            accept: ["Rewrite", "りらいと"], 
+            image: "animetitle3/049_q.jpg", 
+            foundImage: "animetitle3/049_a.jpg" 
+        },
+        { 
+            display: "xxxHOLiC", 
+            accept: ["xxxHOLiC", "ほりっく"], 
+            image: "animetitle3/050_q.jpg", 
+            foundImage: "animetitle3/050_a.jpg" 
+        },
+        { 
+            display: "BanG Dream! It's MyGO!!!!!", 
+            accept: ["BanGDreamItsMyGO", "まいごー", "まいご", "ばんどりいっつまいごー"], 
+            image: "animetitle3/051_q.jpg", 
+            foundImage: "animetitle3/051_a.jpg" 
+        },
+     ];
+
+    let foundCount = 0;
+    let isGameOver = false;
+    let answeredIndices = new Set();
+
+    const remainingText = document.getElementById('remaining');
+    const totalText = document.getElementById('total');
+    const listContainer = document.getElementById('answerList');
+    const messageEl = document.getElementById('message');
+    const giveupBtn = document.getElementById('giveupBtn');
+    const retryBtn = document.getElementById('retryBtn');
+    const limitFill = document.getElementById('limitFill');
+
+    function updateLimitGauge() {
+        const percent = (foundCount / quizData.length) * 100;
+        if(limitFill) limitFill.style.width = percent + "%";
+    }
+
+    function init() {
+        foundCount = 0;
+        isGameOver = false;
+        answeredIndices.clear();
+        listContainer.innerHTML = '';
+        giveupBtn.style.display = 'inline-block';
+        retryBtn.style.display = 'none';
+        remainingText.textContent = quizData.length;
+        totalText.textContent = quizData.length;
+        messageEl.textContent = '';
+
+        quizData.forEach((item, index) => {
+            const div = document.createElement('div');
+            div.className = 'item';
+            div.id = 'target-' + index;
+            // 初期状態は入力欄を表示
+            div.innerHTML = `
+                <div class="hint-image"><img src="${item.image}" alt=""></div>
+                <div class="answer-container" id="container-${index}">
+                    <input type="text" class="card-input" placeholder="作品名は？" data-index="${index}">
+                </div>
+            `;
+            listContainer.appendChild(div);
+        });
+
+        // 各入力欄にイベント設定
+        document.querySelectorAll('.card-input').forEach(input => {
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') checkAnswer(input);
+            });
+        });
+
+        loadProgress();
+        updateLimitGauge();
+    }
+
+    function checkAnswer(inputEl) {
+        if (isGameOver) return;
+        const index = parseInt(inputEl.dataset.index);
+        const val = inputEl.value.trim();
+        if (val === "") return;
+
+        const data = quizData[index];
+        if (data.accept.includes(val)) {
+            answeredIndices.add(index);
+            updateItemDisplay(index, true);
+            foundCount++;
+            remainingText.textContent = quizData.length - foundCount;
+            saveProgress();
+            updateLimitGauge();
+            showMessage("正解！", "#e60012");
+            if (foundCount === quizData.length) finishGame("全問正解！おめでとうございます！", "#e60012");
+        } else {
+            inputEl.value = '';
+            inputEl.placeholder = "不正解！";
+            setTimeout(() => { inputEl.placeholder = "作品名は？"; }, 1000);
+        }
+    }
+
+    function updateItemDisplay(index, isFoundByPlayer) {
+        const targetEl = document.getElementById('target-' + index);
+        const container = document.getElementById('container-' + index);
+        const data = quizData[index];
+        if(!targetEl || !container) return;
+        
+        // 画像を正解画像に
+        targetEl.querySelector('.hint-image img').src = data.foundImage;
+
+        // 入力欄を消して正解テキストを表示
+        container.innerHTML = `
+            <img src="${data.image}" class="mini-hint-thumb" alt="ヒント">
+            <div class="answer-text">${data.display}</div>
+        `;
+        
+        if (isFoundByPlayer) {
+            targetEl.classList.add('found');
+        } else {
+            targetEl.classList.add('missed');
+        }
+    }
+
+    function showMessage(text, color) {
+        messageEl.textContent = text;
+        messageEl.style.color = color;
+        if (!isGameOver) {
+            setTimeout(() => { if (messageEl.textContent === text) messageEl.textContent = ""; }, 1500);
+        }
+    }
+
+    function saveProgress() {
+        localStorage.setItem(config.storageKey, JSON.stringify(Array.from(answeredIndices)));
+    }
+
+    function loadProgress() {
+        const savedData = localStorage.getItem(config.storageKey);
+        if (savedData) {
+            const savedIndices = JSON.parse(savedData);
+            savedIndices.forEach(index => {
+                if (index < quizData.length) {
+                    answeredIndices.add(index);
+                    updateItemDisplay(index, true);
+                    foundCount++;
+                }
+            });
+            remainingText.textContent = quizData.length - foundCount;
+        }
+    }
+
+    giveupBtn.addEventListener('click', () => {
+        isGameOver = true;
+        quizData.forEach((item, index) => {
+            if (!answeredIndices.has(index)) updateItemDisplay(index, false);
+        });
+        finishGame("答え合わせ", "#666");
+    });
+
+    retryBtn.addEventListener('click', () => {
+        if(confirm("リセットしますか？")) {
+            localStorage.removeItem(config.storageKey);
+            init();
+        }
+    });
+
+    function finishGame(msg, color) {
+        isGameOver = true;
+        document.querySelectorAll('.card-input').forEach(i => i.disabled = true);
+        giveupBtn.style.display = 'none';
+        retryBtn.style.display = 'inline-block';
+        showMessage(msg, color);
+    }
+
+    init();
+</script>
+
+</body>
+</html>
