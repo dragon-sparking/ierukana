@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Slay the Spire 2: Card Quiz</title>
+    <style>
+        :root {
+            /* Slay the Spire カラーパレット */
+            --bg-dark: #0f0f0f;
+            --panel-bg: rgba(25, 25, 25, 0.95);
+            --border-gold: #8c7851;
+            
+            /* クラス別カラー */
+            --color-ironclad: #9b2218;
+            --color-silent: #2e5d32;
+            --color-defect: #1c4d6d;
+            --color-watcher: #6a2c70;
+            --color-common: #444444;
+            
+            --text-main: #e0e0e0;
+
+            /* レアリティ別テキストカラー */
+            --rarity-starter: #ffffff;
+            --rarity-common: #ffffff;
+            --rarity-uncommon: #00ffff;
+            --rarity-rare: #ffd700;
+            --rarity-ancient: #ff4444;
+        }
+
+        body {
+            font-family: 'Hiragino Mincho ProN', 'serif';
+            text-align: center;
+            background: radial-gradient(circle at center, #222 0%, #000 100%);
+            background-attachment: fixed;
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1500px;
+            margin: 0 auto;
+            background: var(--panel-bg);
+            border: 2px solid var(--border-gold);
+            box-shadow: 0 0 30px rgba(0,0,0,1);
+            padding: 20px;
+        }
+
+        .sticky-header {
+            position: sticky;
+            top: 0;
+            background: rgba(15, 15, 15, 0.98);
+            padding: 20px 0;
+            z-index: 100;
+            border-bottom: 2px solid var(--border-gold);
+            margin-bottom: 20px;
+            backdrop-filter: blur(8px);
+        }
+
+        h2 { 
+            margin: 0 0 10px 0; 
+            letter-spacing: 4px; 
+            color: #fff; 
+            text-shadow: 0 0 10px var(--border-gold);
+        }
+
+        .limit-gauge-outer {
+            max-width: 600px;
+            margin: 10px auto;
+            background: #000;
+            border: 1px solid var(--border-gold);
+            padding: 2px;
+            position: relative;
+        }
+
+        .limit-gauge-bg {
+            height: 14px;
+            background: #111;
+            overflow: hidden;
+        }
+
+        #limitFill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #444, var(--border-gold), #fff);
+            box-shadow: 0 0 10px rgba(255,255,255,0.2);
+            transition: width 0.5s ease;
+        }
+
+        .limit-label {
+            font-family: monospace;
+            color: var(--border-gold);
+            font-size: 1.1em;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .status { margin: 10px 0; font-size: 1em; letter-spacing: 2px; color: #aaa; }
+        #message { height: 24px; font-weight: bold; margin-bottom: 10px; }
+
+        input {
+            font-size: 18px;
+            padding: 12px;
+            width: 350px;
+            border: 1px solid var(--border-gold);
+            background: #000;
+            color: #fff;
+            outline: none;
+            text-align: center;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            font-size: 14px;
+            cursor: pointer;
+            border: 1px solid var(--border-gold);
+            background: #1a1a1a;
+            color: var(--border-gold);
+            font-weight: bold;
+            transition: 0.2s;
+            margin-left: 10px;
+        }
+
+        .btn:hover { background: var(--border-gold); color: #000; }
+
+        .list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 15px;
+            padding: 20px;
+        }
+
+        .item {
+            aspect-ratio: 3/4;
+            background: #111;
+            border: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+            transition: all 0.4s ease;
+        }
+
+        .item:not(.found):not(.missed) {
+            opacity: 0.8;
+            border-color: #222;
+        }
+
+        .hint-text { 
+            font-size: 0.9em; 
+            margin-bottom: 8px; 
+            font-weight: bold; 
+            text-shadow: 1px 1px 2px #000;
+        }
+        .hint-starter, .hint-コモン { color: var(--rarity-common) !important; }
+        .hint-アンコ { color: var(--rarity-uncommon) !important; }
+        .hint-レア { color: var(--rarity-rare) !important; }
+        .hint-エンシェント { color: var(--rarity-ancient) !important; }
+
+        .answer-text { 
+            font-size: 1.1em; 
+            font-weight: bold; 
+            color: #444;
+            transition: color 0.3s;
+        }
+
+        .item.found, .item.missed {
+            transform: translateY(-3px);
+            border-width: 2px;
+            opacity: 1 !important;
+        }
+
+        .item.found .answer-text { color: #fff; text-shadow: 0 0 5px #fff; }
+
+        .cls-ironclad.found { border-color: #ff4d00; background: linear-gradient(180deg, #4a0a0a, #111); box-shadow: 0 0 15px var(--color-ironclad); }
+        .cls-silent.found   { border-color: #7fff00; background: linear-gradient(180deg, #0a3a0a, #111); box-shadow: 0 0 15px var(--color-silent); }
+        .cls-defect.found   { border-color: #00e5ff; background: linear-gradient(180deg, #0a2a4a, #111); box-shadow: 0 0 15px var(--color-defect); }
+        .cls-watcher.found  { border-color: #e0b0ff; background: linear-gradient(180deg, #3a0a4a, #111); box-shadow: 0 0 15px var(--color-watcher); }
+        .cls-common.found   { border-color: #ffffff; background: linear-gradient(180deg, #333, #111); box-shadow: 0 0 15px #666; }
+        .cls-regent.found { border-color: #ff8c00; background: linear-gradient(180deg, #8b4513, #111); box-shadow: 0 0 15px #666; }
+        .cls-necro.found { border-color: #c71585; background: linear-gradient(180deg, #800060, #111); box-shadow: 0 0 15px #666; }
+        .cls-curse.found { border-color: #8a2be2; background: linear-gradient(180deg, #2e0854, #111); box-shadow: 0 0 15px #4b0082; color: #e0d0ff;}
+
+        .item.missed { border-color: #ff4444 !important; background: #200 !important; }
+        .item.missed .answer-text { color: #ff4444; }
+
+        @keyframes gold-pulse {
+            0% { box-shadow: 0 0 5px gold; }
+            50% { box-shadow: 0 0 25px gold; filter: brightness(1.2); }
+            100% { box-shadow: 0 0 5px gold; }
+        }
+        .limit-max #limitFill {
+            background: gold;
+            animation: gold-pulse 1s infinite;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="sticky-header">
+        <h2>Slay the Spire 2: Card Quiz</h2>
+        <div class="limit-label" id="progressPercent">0%</div> 
+        <div class="limit-gauge-outer" id="gaugeWrapper">
+            <div class="limit-gauge-bg">
+                <div id="limitFill"></div>
+            </div>
+        </div>
+        <div class="status">REMAINING: <span id="remaining">--</span> / <span id="total">--</span></div>
+        <div id="message"></div>
+        <input type="text" id="answerInput" placeholder="" autofocus autocomplete="off">
+        <button class="btn" id="giveupBtn">GIVE UP</button>
+        <button class="btn" id="retryBtn" style="display:none;">RESET RUN</button>
+    </div>
+    <div class="list" id="answerList"></div>
+</div>
+
+<script>
+    const config = {
+        placeholderNormal: "Enter Card Name...",
+        placeholderGameOver: "RUN OVER",
+        storageKey: "quiz_save_" + document.title
+    };
+
+    const quizData = [
+        // スターター
+        { display: "ストライク", accept: ["ストライク"], hint: "共通カード・スターター" },
+        { display: "防御", accept: ["防御"], hint: "共通カード・スターター" },
+        { display: "強打", accept: ["強打"], hint: "アイアンクラッド・スターター" },
+        // コモン
+        { display: "怒り", accept: ["怒り"], hint: "アイアンクラッド・コモン" },
+        { display: "アイアンウェーブ", accept: ["アイアンウェーブ"], hint: "アイアンクラッド・コモン" },
+        { display: "サンダークラップ", accept: ["サンダークラップ"], hint: "アイアンクラッド・コモン" },
+        { display: "セットアップストライク", accept: ["セットアップストライク"], hint: "アイアンクラッド・コモン" },
+        { display: "ソードブーメラン", accept: ["ソードブーメラン"], hint: "アイアンクラッド・コモン" },
+        { display: "ツインストライク", accept: ["ツインストライク"], hint: "アイアンクラッド・コモン" },
+        { display: "ヘッドバット", accept: ["ヘッドバット"], hint: "アイアンクラッド・コモン" },
+        { display: "ボディスラム", accept: ["ボディスラム"], hint: "アイアンクラッド・コモン" },
+        { display: "ポンメルストライク", accept: ["ポンメルストライク"], hint: "アイアンクラッド・コモン" },
+        { display: "血路を開く", accept: ["血路を開く"], hint: "アイアンクラッド・コモン" },
+        { display: "溶岩の拳", accept: ["溶岩の拳"], hint: "アイアンクラッド・コモン" },
+        { display: "パーフェクトストライク", accept: ["パーフェクトストライク"], hint: "アイアンクラッド・コモン" },
+        { display: "黒焦げ", accept: ["黒焦げ"], hint: "アイアンクラッド・コモン" },
+        { display: "瀉血", accept: ["瀉血"], hint: "アイアンクラッド・コモン" },
+        { display: "荒廃", accept: ["荒廃"], hint: "アイアンクラッド・コモン" },
+        { display: "受け流し", accept: ["受け流し"], hint: "アイアンクラッド・コモン" },
+        { display: "身震い", accept: ["身震い"], hint: "アイアンクラッド・コモン" },
+        { display: "不屈の闘志", accept: ["不屈の闘志"], hint: "アイアンクラッド・コモン" },
+        { display: "武装", accept: ["武装"], hint: "アイアンクラッド・コモン" },
+        { display: "血の壁", accept: ["血の壁"], hint: "アイアンクラッド・コモン" },
+        // アンコ
+        { display: "ごろつき", accept: ["ごろつき"], hint: "アイアンクラッド・アンコ" },
+        { display: "悪意", accept: ["悪意"], hint: "アイアンクラッド・アンコ" },
+        { display: "旋風刃", accept: ["旋風刃"], hint: "アイアンクラッド・アンコ" },
+        { display: "アッシュストライク", accept: ["アッシュストライク"], hint: "アイアンクラッド・アンコ" },
+        { display: "グラップル", accept: ["グラップル"], hint: "アイアンクラッド・アンコ" },
+        { display: "ぶんどる", accept: ["ぶんどる"], hint: "アイアンクラッド・アンコ" },
+        { display: "ヘモキネシス", accept: ["ヘモキネシス"], hint: "アイアンクラッド・アンコ" },
+        { display: "ランページ", accept: ["ランページ"], hint: "アイアンクラッド・アンコ" },
+        { display: "解体", accept: ["解体"], hint: "アイアンクラッド・アンコ" },
+        { display: "アッパーカット", accept: ["アッパーカット"], hint: "アイアンクラッド・アンコ" },
+        { display: "俺と戦え！", accept: ["俺と戦え！", "俺と戦え!", "俺と戦え"], hint: "アイアンクラッド・アンコ" },
+        { display: "冷酷", accept: ["冷酷"], hint: "アイアンクラッド・アンコ" },
+        { display: "踏みつけ", accept: ["踏みつけ"], hint: "アイアンクラッド・アンコ" },
+        { display: "脳天割り", accept: ["脳天割り"], hint: "アイアンクラッド・アンコ" },
+        { display: "彼方からの遠吠え", accept: ["彼方からの遠吠え"], hint: "アイアンクラッド・アンコ" },
+        { display: "バトルトランス", accept: ["バトルトランス"], hint: "アイアンクラッド・アンコ" },
+        { display: "悪魔の盾", accept: ["悪魔の盾"], hint: "アイアンクラッド・アンコ" },
+        { display: "激怒", accept: ["激怒"], hint: "アイアンクラッド・アンコ" },
+        { display: "イービルアイ", accept: ["イービルアイ"], hint: "アイアンクラッド・アンコ" },
+        { display: "セカンドウィンド", accept: ["セカンドウィンド"], hint: "アイアンクラッド・アンコ" },
+        { display: "威圧", accept: ["威圧"], hint: "アイアンクラッド・アンコ" },
+        { display: "焦熱の契約", accept: ["焦熱の契約"], hint: "アイアンクラッド・アンコ" },
+        { display: "挑発", accept: ["挑発"], hint: "アイアンクラッド・アンコ" },
+        { display: "非道の刃", accept: ["非道の刃"], hint: "アイアンクラッド・アンコ" },
+        { display: "忘れられし儀式", accept: ["忘れられし儀式"], hint: "アイアンクラッド・アンコ" },
+        { display: "炎の障壁", accept: ["炎の障壁"], hint: "アイアンクラッド・アンコ" },
+        { display: "戦いの予感", accept: ["戦いの予感"], hint: "アイアンクラッド・アンコ" },
+        { display: "戦いのドラム", accept: ["戦いのドラム"], hint: "アイアンクラッド・アンコ" },
+        { display: "インフェルノ", accept: ["インフェルノ"], hint: "アイアンクラッド・アンコ" },
+        { display: "ジャグリング", accept: ["ジャグリング"], hint: "アイアンクラッド・アンコ" },
+        { display: "ストーンアーマー", accept: ["ストーンアーマー"], hint: "アイアンクラッド・アンコ" },
+        { display: "血の沸騰", accept: ["血の沸騰"], hint: "アイアンクラッド・アンコ" },
+        { display: "残忍", accept: ["残忍"], hint: "アイアンクラッド・アンコ" },
+        { display: "発火", accept: ["発火"], hint: "アイアンクラッド・アンコ" },
+        { display: "無痛", accept: ["無痛"], hint: "アイアンクラッド・アンコ" },
+        { display: "暴走", accept: ["暴走"], hint: "アイアンクラッド・アンコ" },
+        // レア
+        { display: "契約の終わり", accept: ["契約の終わり"], hint: "アイアンクラッド・レア" },
+        { display: "捕食", accept: ["捕食"], hint: "アイアンクラッド・レア" },
+        { display: "滅多打ち", accept: ["滅打打ち"], hint: "アイアンクラッド・レア" },
+        { display: "猛火", accept: ["猛火"], hint: "アイアンクラッド_レア" },
+        { display: "鬼火", accept: ["鬼火"], hint: "アイアンクラッド・レア" },
+        { display: "八つ裂き", accept: ["八つ裂き"], hint: "アイアンクラッド・レア" },
+        { display: "切り刻み", accept: ["切り刻み"], hint: "アイアンクラッド・レア" },
+        { display: "カスケード", accept: ["カスケード"], hint: "アイアンクラッド・レア" },
+        { display: "供物", accept: ["供物"], hint: "アイアンクラッド・レア" },
+        { display: "原始の力", accept: ["原始の力"], hint: "アイアンクラッド・レア" },
+        { display: "焼印", accept: ["焼印"], hint: "アイアンクラッド・レア" },
+        { display: "ワン・ツーパンチ", accept: ["ワン・ツーパンチ"], hint: "アイアンクラッド・レア" },
+        { display: "巨人", accept: ["巨人"], hint: "アイアンクラッド・レア" },
+        { display: "焚きつけ", accept: ["焚きつけ"], hint: "アイアンクラッド・レア" },
+        { display: "不動", accept: ["不動"], hint: "アイアンクラッド・レア" },
+        { display: "タンク", accept: ["タンク"], hint: "アイアンクラッド・レア" },
+        { display: "残酷", accept: ["残酷"], hint: "アイアンクラッド・レア" },
+        { display: "深紅の衣", accept: ["深紅の衣"], hint: "アイアンクラッド・レア" },
+        { display: "闘争心", accept: ["闘争心"], hint: "アイアンクラッド・レア" },
+        { display: "かがり火", accept: ["かがり火"], hint: "アイアンクラッド・レア" },
+        { display: "ジャガーノート", accept: ["ジャガーノート"], hint: "アイアンクラッド・レア" },
+        { display: "ヘル・レイザー", accept: ["ヘル・レイザー"], hint: "アイアンクラッド・レア" },
+        { display: "闇の抱擁", accept: ["闇の抱擁"], hint: "アイアンクラッド・レア" },
+        { display: "盤石", accept: ["盤石"], hint: "アイアンクラッド・レア" },
+        { display: "バリケード", accept: ["バリケード"], hint: "アイアンクラッド・レア" },
+        { display: "悪魔化", accept: ["悪魔化"], hint: "アイアンクラッド・レア" },
+        // エンシェント
+        { display: "破砕", accept: ["破砕"], hint: "アイアンクラッド・エンシェント" },
+        { display: "堕落", accept: ["堕落"], hint: "アイアンクラッド・エンシェント" },
+// --- サイレント ---
+        // スターター
+        { display: "無力化", accept: ["無力化"], hint: "サイレント・スターター" },
+        { display: "サバイバー", accept: ["サバイバー"], hint: "サイレント・スターター" },
+        // コモン
+        { display: "スライス", accept: ["スライス"], hint: "サイレント・コモン" },
+        { display: "ダガースロー", accept: ["ダガースロー"], hint: "サイレント・コモン" },
+        { display: "フリック・フラック", accept: ["フリック・フラック"], hint: "サイレント・コモン" },
+        { display: "リーディングストライク", accept: ["リーディングストライク"], hint: "サイレント・コモン" },
+        { display: "五月雨ダガー", accept: ["五月雨ダガー"], hint: "サイレント・コモン" },
+        { display: "毒の一刺し", accept: ["毒の一刺し"], hint: "サイレント・コモン" },
+        { display: "不意打ち", accept: ["不意打ち"], hint: "サイレント・コモン" },
+        { display: "跳弾", accept: ["跳弾"], hint: "サイレント・コモン" },
+        { display: "ディフレクト", accept: ["ディフレクト"], hint: "サイレント・コモン" },
+        { display: "機先", accept: ["機先"], hint: "サイレント・コモン" },
+        { display: "準備", accept: ["準備"], hint: "サイレント・コモン" },
+        { display: "アクロバット", accept: ["アクロバット"], hint: "サイレント・コモン" },
+        { display: "ドッジ＆ロール", accept: ["ドッジ＆ロール"], hint: "サイレント・コモン" },
+        { display: "バックフリップ", accept: ["バックフリップ"], hint: "サイレント・コモン" },
+        { display: "外套と短剣", accept: ["外套と短剣"], hint: "サイレント・コモン" },
+        { display: "金切り声", accept: ["金切り声"], hint: "サイレント・コモン" },
+        { display: "剣の舞", accept: ["剣の舞"], hint: "サイレント・コモン" },
+        { display: "致死毒", accept: ["致死毒"], hint: "サイレント・コモン" },
+        { display: "蛇の噛みつき", accept: ["蛇の噛みつき"], hint: "サイレント・コモン" },
+        { display: "不可侵", accept: ["不可侵"], hint: "サイレント・コモン" },
+        // アンコ
+        { display: "串刺し", accept: ["串刺し"], hint: "サイレント・アンコ" },
+        { display: "研ぎ澄まされた刃", accept: ["研ぎ澄まされた刃"], hint: "サイレント・アンコ" },
+        { display: "騙し討ち", accept: ["騙し討ち"], hint: "サイレント・アンコ" },
+        { display: "フィニッシャー", accept: ["フィニッシャー"], hint: "サイレント・アンコ" },
+        { display: "フレシェット", accept: ["フレシェット"], hint: "サイレント・アンコ" },
+        { display: "メメント・モリ", accept: ["メメント・モリ"], hint: "サイレント・アンコ" },
+        { display: "絞殺", accept: ["絞殺"], hint: "サイレント・アンコ" },
+        { display: "追打ち", accept: ["追打ち"], hint: "サイレント・アンコ" },
+        { display: "ダッシュ", accept: ["ダッシュ"], hint: "サイレント・アンコ" },
+        { display: "急襲", accept: ["急襲"], hint: "サイレント・アンコ" },
+        { display: "略奪", accept: ["略奪"], hint: "サイレント・アンコ" },
+        { display: "ピンポイント", accept: ["ピンポイント"], hint: "サイレント・アンコ" },
+        { display: "イカサマ", accept: ["イカサマ"], hint: "サイレント・アンコ" },
+        { display: "暗器", accept: ["暗器"], hint: "サイレント・アンコ" },
+        { display: "脱出計画", accept: ["脱出計画"], hint: "サイレント・アンコ" },
+        { display: "暴露", accept: ["暴露"], hint: "サイレント・アンコ" },
+        { display: "バブル・バブル", accept: ["バブル・バブル"], hint: "サイレント・アンコ" },
+        { display: "ブラー", accept: ["ブラー"], hint: "サイレント・アンコ" },
+        { display: "手品", accept: ["手品"], hint: "サイレント・アンコ" },
+        { display: "職人技", accept: ["職人技"], hint: "サイレント・アンコ" },
+        { display: "蜃気楼", accept: ["蜃気楼"], hint: "サイレント・アンコ" },
+        { display: "バウンドフラスコ", accept: ["バウンドフラスコ"], hint: "サイレント・アンコ" },
+        { display: "奥の手", accept: ["奥の手"], hint: "サイレント・アンコ" },
+        { display: "挟撃", accept: ["挟撃"], hint: "サイレント・アンコ" },
+        { display: "足払い", accept: ["足払い"], hint: "サイレント・アンコ" },
+        { display: "策士", accept: ["策士"], hint: "サイレント・アンコ" },
+        { display: "毒の薄霧", accept: ["毒の薄霧"], hint: "サイレント・アンコ" },
+        { display: "反射神経", accept: ["反射神経"], hint: "サイレント・アンコ" },
+        { display: "ファントムブレード", accept: ["ファントムブレード"], hint: "サイレント・アンコ" },
+        { display: "フットワーク", accept: ["フットワーク"], hint: "サイレント・アンコ" },
+        { display: "感染爆発", accept: ["感染爆発"], hint: "サイレント・アンコ" },
+        { display: "精度上昇", accept: ["精度上昇"], hint: "サイレント・アンコ" },
+        { display: "毒ガス", accept: ["毒ガス"], hint: "サイレント・アンコ" },
+        { display: "無限の刃", accept: ["無限の刃"], hint: "サイレント・アンコ" },
+        { display: "用意周到", accept: ["用意周到"], hint: "サイレント・アンコ" },
+        { display: "スピードスター", accept: ["スピードスター"], hint: "サイレント・アンコ" },
+        // レア
+        { display: "グランドフィナーレ", accept: ["グランドフィナーレ"], hint: "サイレント・レア" },
+        { display: "暗殺", accept: ["暗殺"], hint: "サイレント・レア" },
+        { display: "狩猟", accept: ["狩猟"], hint: "サイレント・レア" },
+        { display: "反響する斬撃", accept: ["反響する斬撃"], hint: "サイレント・レア" },
+        { display: "殺害", accept: ["殺害"], hint: "サイレント・レア" },
+        { display: "アドレナリン", accept: ["アドレナリン"], hint: "サイレント・レア" },
+        { display: "不快感", accept: ["不快感"], hint: "サイレント・レア" },
+        { display: "シャドウステップ", accept: ["シャドウステップ"], hint: "サイレント・レア" },
+        { display: "バースト", accept: ["バースト"], hint: "サイレント・レア" },
+        { display: "影との融合", accept: ["影との融合"], hint: "サイレント・レア" },
+        { display: "鋼の嵐", accept: ["鋼の嵐"], hint: "サイレント・レア" },
+        { display: "腐食の波", accept: ["腐食の波"], hint: "サイレント・レア" },
+        { display: "墨の刃", accept: ["墨の刃"], hint: "サイレント・レア" },
+        { display: "ナイフの罠", accept: ["ナイフの罠"], hint: "サイレント・レア" },
+        { display: "バレットタイム", accept: ["バレットタイム"], hint: "サイレント・レア" },
+        { display: "悪夢", accept: ["悪夢"], hint: "サイレント・レア" },
+        { display: "残像", accept: ["残像"], hint: "サイレント・レア" },
+        { display: "商売道具", accept: ["商売道具"], hint: "サイレント・レア" },
+        { display: "促進剤", accept: ["促進剤"], hint: "サイレント・レア" },
+        { display: "ナイフの雨", accept: ["ナイフの雨"], hint: "サイレント・レア" },
+        { display: "隠密", accept: ["隠密"], hint: "サイレント・レア" },
+        { display: "稀代の策士", accept: ["稀代の策士"], hint: "サイレント・レア" },
+        { display: "追跡", accept: ["追跡"], hint: "サイレント・レア" },
+        { display: "毒の仕込み", accept: ["毒の仕込み"], hint: "サイレント・レア" },
+        { display: "刺々しい", accept: ["刺々しい"], hint: "サイレント・レア" },
+        { display: "大蛇化", accept: ["大蛇化"], hint: "サイレント・レア" },
+        // エンシェント
+        { display: "抑圧", accept: ["抑圧"], hint: "サイレント・エンシェント" },
+        { display: "死霊化", accept: ["死霊化"], hint: "サイレント・エンシェント" },
+// --- リージェント ---
+        // スターター
+        { display: "落星", accept: ["落星"], hint: "リージェント・スターター" },
+        { display: "畏敬", accept: ["畏敬"], hint: "リージェント・スターター" },
+        // コモン
+        { display: "衝突軌道", accept: ["衝突軌道"], hint: "リージェント・コモン" },
+        { display: "星霊の波動", accept: ["星霊の波動"], hint: "リージェント・コモン" },
+        { display: "ソーラーストライク", accept: ["ソーラーストライク"], hint: "リージェント・コモン" },
+        { display: "フォトンカット", accept: ["フォトンカット"], hint: "リージェント・コモン" },
+        { display: "三日月の槍", accept: ["三日月の槍"], hint: "リージェント・コモン" },
+        { display: "失せよ！", accept: ["失せよ！", "失せよ!", "失せよ"], hint: "リージェント・コモン" },
+        { display: "重圧", accept: ["重圧"], hint: "リージェント・コモン" },
+        { display: "導きの星", accept: ["導きの星"], hint: "リージェント・コモン" },
+        { display: "百戦錬磨", accept: ["百戦錬磨"], hint: "リージェント・コモン" },
+        { display: "天の力", accept: ["天の力"], hint: "リージェント・コモン" },
+        { display: "身の程を知れ", accept: ["身の程を知れ"], hint: "リージェント・コモン" },
+        { display: "星の外套", accept: ["星の外套"], hint: "リージェント・コモン" },
+        { display: "隠し財産", accept: ["隠し財産"], hint: "リージェント・コモン" },
+        { display: "宇宙的無関心", accept: ["宇宙的無関心"], hint: "リージェント・コモン" },
+        { display: "輝き", accept: ["輝き"], hint: "リージェント・コモン" },
+        { display: "剣の研磨", accept: ["剣の研磨"], hint: "リージェント・コモン" },
+        { display: "光の集約", accept: ["光の集約"], hint: "リージェント・コモン" },
+        { display: "小盾の展開", accept: ["小盾の展開"], hint: "リージェント・コモン" },
+        { display: "戦利品", accept: ["戦利品"], hint: "リージェント・コモン" },
+        { display: "煌めく激流", accept: ["煌めく激流"], hint: "リージェント・コモン" },
+        // アンコ
+        { display: "ガンマブラスト", accept: ["ガンマブラスト"], hint: "リージェント・アンコ" },
+        { display: "輝きの奔流", accept: ["輝きの奔流"], hint: "リージェント・アンコ" },
+        { display: "月光波", accept: ["月光波"], hint: "リージェント・アンコ" },
+        { display: "星くず", accept: ["星くず"], hint: "リージェント・アンコ" },
+        { display: "シャイニングストライク", accept: ["シャイニングストライク"], hint: "リージェント・アンコ" },
+        { display: "王様パンチ", accept: ["王様パンチ"], hint: "リージェント・アンコ" },
+        { display: "撃滅", accept: ["撃滅"], hint: "リージェント・アンコ" },
+        { display: "超巨大", accept: ["超巨大"], hint: "リージェント・アンコ" },
+        { display: "覇権", accept: ["覇権"], hint: "リージェント・アンコ" },
+        { display: "ノックアウト", accept: ["ノックアウト"], hint: "リージェント・アンコ" },
+        { display: "王様キック", accept: ["王様キック"], hint: "リージェント・アンコ" },
+        { display: "クエーサー", accept: ["クエーサー"], hint: "リージェント ・アンコ" },
+        { display: "モノローグ", accept: ["モノローグ"], hint: "リージェント・アンコ" },
+        { display: "ロイヤルギャンブル", accept: ["ロイヤルギャンブル"], hint: "リージェント・アンコ" },
+        { display: "寛大なる施し", accept: ["寛大なる施し"], hint: "リージェント・アンコ" },
+        { display: "星の巡り", accept: ["星の巡り"], hint: "リージェント・アンコ" },
+        { display: "粒子障壁", accept: ["粒子障壁"], hint: "リージェント・アンコ" },
+        { display: "テラフォーミング", accept: ["テラフォーミング"], hint: "リージェント・アンコ" },
+        { display: "共鳴", accept: ["共鳴"], hint: "リージェント・アンコ" },
+        { display: "権威の体現", accept: ["権威の体現"], hint: "リージェント・アンコ" },
+        { display: "顕現", accept: ["顕現"], hint: "リージェント・アンコ" },
+        { display: "集約", accept: ["集約"], hint: "リージェント・アンコ" },
+        { display: "征服者", accept: ["征服者"], hint: "リージェント・アンコ" },
+        { display: "突撃せよ！", accept: ["突撃せよ！", "突撃せよ!", "突撃せよ"], hint: "リージェント・アンコ" },
+        { display: "反射", accept: ["反射"], hint: "リージェント・アンコ" },
+        { display: "微光", accept: ["微光"], hint: "リージェント・アンコ" },
+        { display: "城壁", accept: ["城壁"], hint: "リージェント・アンコ" },
+        { display: "予言", accept: ["予言"], hint: "リージェント・アンコ" },
+        { display: "パリィ", accept: ["パリィ"], hint: "リージェント・アンコ" },
+        { display: "ブラックホール", accept: ["ブラックホール"], hint: "リージェント・アンコ" },
+        { display: "ペイル・ブルー・ドット", accept: ["ペイル・ブルー・ドット"], hint: "リージェント・アンコ" },
+        { display: "星の子", accept: ["星の子"], hint: "リージェント・アンコ" },
+        { display: "創造の柱", accept: ["創造の柱"], hint: "リージェント・アンコ" },
+        { display: "溶鉱炉", accept: ["溶鉱炉"], hint: "リージェント・アンコ" },
+        { display: "オービット", accept: ["オービット"], hint: "リージェント・アンコ" },
+        { display: "スペクトラムシフト", accept: ["スペクトラムシフト"], hint: "リージェント・アンコ" },
+        // レア
+        { display: "ヘヴンリードリル", accept: ["ヘヴンリードリル"], hint: "リージェント・レア" },
+        { display: "実行せよ", accept: ["実行せよ"], hint: "リージェント・レア" },
+        { display: "彗星", accept: ["彗星"], hint: "リージェント・レア" },
+        { display: "星の終わり", accept: ["星の終わり"], hint: "リージェント・レア" },
+        { display: "叩き直してやる", accept: ["叩き直してやる"], hint: "リージェント・レア" },
+        { display: "不時着", accept: ["不時着"], hint: "リージェント・レア" },
+        { display: "セブンスターズ", accept: ["セブンスターズ"], hint: "リージェント・レア" },
+        { display: "家宝のハンマー", accept: ["家宝のハンマー"], hint: "リージェント・レア" },
+        { display: "爆撃", accept: ["爆撃"], hint: "リージェント・レア" },
+        { display: "ビッグバン", accept: ["ビッグバン"], hint: "リージェント・レア" },
+        { display: "悩ましい選択", accept: ["悩ましい選択"], hint: "リージェント・レア" },
+        { display: "我に死角なし", accept: ["我に死角なし"], hint: "リージェント・レア" },
+        { display: "確定事項", accept: ["確定事項"], hint: "リージェント・レア" },
+        { display: "思いがけぬ贈り物", accept: ["思いがけぬ贈り物"], hint: "リージェント・レア" },
+        { display: "鍛冶師", accept: ["鍛冶師"], hint: "リージェント・レア" },
+        { display: "盾となれ！！", accept: ["盾となれ！！", "盾となれ!!", "盾となれ"], hint: "リージェント・レア" },
+        { display: "ニュートロン・イージス", accept: ["ニュートロン・イージス"], hint: "リージェント・レア" },
+        { display: "ロイヤリティ", accept: ["ロイヤリティ"], hint: "リージェント・レア" },
+        { display: "専制", accept: ["専制"], hint: "リージェント・レア" },
+        { display: "追尾の刃", accept: ["追尾の刃"], hint: "リージェント・レア" },
+        { display: "武器庫", accept: ["武器庫"], hint: "リージェント・レア" },
+        { display: "ジェネシス", accept: ["ジェネシス"], hint: "リージェント・レア" },
+        { display: "ハンマータイム", accept: ["ハンマータイム"], hint: "リージェント・レア" },
+        { display: "剣聖", accept: ["剣聖"], hint: "リージェント・レア" },
+        { display: "虚無化", accept: ["虚無化"], hint: "リージェント・レア" },
+        { display: "君主の睨み", accept: ["君主の睨み"], hint: "リージェント・レア" },
+        // エンシェント
+        { display: "流星群", accept: ["流星群"], hint: "リージェント・エンシェント" },
+        { display: "封印されし玉座", accept: ["封印されし玉座"], hint: "リージェント・エンシェント" },
+// --- ネクロバインダー ---
+        // スターター
+        { display: "解き放つ", accept: ["解き放つ"], hint: "ネクロバインダー・スターター" },
+        { display: "ボディガード", accept: ["ボディガード"], hint: "ネクロバインダー・スターター" },
+        // コモン
+        { display: "つっつき", accept: ["つっつき"], hint: "ネクロバインダー・コモン" },
+        { display: "パチン", accept: ["パチン"], hint: "ネクロバインダー・コモン" },
+        { display: "畏怖", accept: ["畏怖"], hint: "ネクロバインダー・コモン" },
+        { display: "枯毒のストライク", accept: ["枯毒のストライク"], hint: "ネクロバインダー・コモン" },
+        { display: "魂剥ぎ", accept: ["魂剥ぎ"], hint: "ネクロバインダー・コモン" },
+        { display: "種まき", accept: ["種まき"], hint: "ネクロバインダー・コモン" },
+        { display: "彫刻のストライク", accept: ["彫刻のストライク"], hint: "ネクロバインダー・コモン" },
+        { display: "墓場の爆発", accept: ["墓場の爆発"], hint: "ネクロバインダー・コモン" },
+        { display: "冒涜", accept: ["冒涜"], hint: "ネクロバインダー・コモン" },
+        { display: "力の吸収", accept: ["力の吸収"], hint: "ネクロバインダー・コモン" },
+        { display: "ぺしゃんこ", accept: ["ぺしゃんこ"], hint: "ネクロバインダー・コモン" },
+        { display: "刈り取り", accept: ["刈り取り"], hint: "ネクロバインダー・コモン" },
+        { display: "ウィスプ", accept: ["ウィスプ"], hint: "ネクロバインダー・コモン" },
+        { display: "祈祷", accept: ["祈祷"], hint: "ネクロバインダー・コモン" },
+        { display: "天罰", accept: ["天罰"], hint: "ネクロバインダー・コモン" },
+        { display: "反抗", accept: ["反抗"], hint: "ネクロバインダー・コモン" },
+        { display: "負の波動", accept: ["負の波動"], hint: "ネクロバインダー・コモン" },
+        { display: "墓守", accept: ["墓守"], hint: "ネクロバインダー・コモン" },
+        { display: "来世", accept: ["来世"], hint: "ネクロバインダー・コモン" },
+        { display: "ヘイト稼ぎ", accept: ["ヘイト稼ぎ"], hint: "ネクロバインダー・コモン" },
+        // アンコ
+        { display: "とってこい", accept: ["とってこい"], hint: "ネクロバインダー・アンコ" },
+        { display: "まさに右腕", accept: ["まさに右腕"], hint: "ネクロバインダー・アンコ" },
+        { display: "ガラガラ", accept: ["ガラガラ"], hint: "ネクロバインダー・アンコ" },
+        { display: "ベールピアサー", accept: ["ベールピアサー"], hint: "ネクロバインダー・アンコ" },
+        { display: "やっちゃえ", accept: ["やっちゃえ"], hint: "ネクロバインダー・アンコ" },
+        { display: "骨の破片", accept: ["骨の破片"], hint: "ネクロバインダー・アンコ" },
+        { display: "死の行進", accept: ["死の行進"], hint: "ネクロバインダー・アンコ" },
+        { display: "衰弱", accept: ["衰弱"], hint: "ネクロバインダー・アンコ" },
+        { display: "地底からの引き寄せ", accept: ["地底からの引き寄せ"], hint: "ネクロバインダー・アンコ" },
+        { display: "ハイタッチ", accept: ["ハイタッチ"], hint: "ネクロバインダー・アンコ" },
+        { display: "分霊", accept: ["分霊"], hint: "ネクロバインダー・アンコ" },
+        { display: "埋葬", accept: ["埋葬"], hint: "ネクロバインダー・アンコ" },
+        { display: "借り物の時間", accept: ["借り物の時間"], hint: "ネクロバインダー・アンコ" },
+        { display: "葬送歌", accept: ["葬送歌"], hint: "ネクロバインダー・アンコ" },
+        { display: "化膿", accept: ["化膿"], hint: "ネクロバインダー・アンコ" },
+        { display: "解析", accept: ["解析"], hint: "ネクロバインダー・アンコ" },
+        { display: "虚脱の魔手", accept: ["虚脱の魔手"], hint: "ネクロバインダー・アンコ" },
+        { display: "激励", accept: ["激励"], hint: "ネクロバインダー・アンコ" },
+        { display: "採取", accept: ["採取"], hint: "ネクロバインダー・アンコ" },
+        { display: "死への扉", accept: ["死への扉"], hint: "ネクロバインダー・アンコ" },
+        { display: "浄化", accept: ["浄化"], hint: "ネクロバインダー・アンコ" },
+        { display: "逃げ場なし", accept: ["逃げ場なし"], hint: "ネクロバインダー・アンコ" },
+        { display: "霊魂抽出", accept: ["霊魂抽出"], hint: "ネクロバインダー・アンコ" },
+        { display: "ディレイ", accept: ["ディレイ"], hint: "ネクロバインダー・アンコ" },
+        { display: "デスブリンガー", accept: ["デスブリンガー"], hint: "ネクロバインダー・アンコ" },
+        { display: "骨の軍団", accept: ["骨の軍団"], hint: "ネクロバインダー・アンコ" },
+        { display: "憂鬱", accept: ["憂鬱"], hint: "ネクロバインダー・アンコ" },
+        { display: "カウントダウン", accept: ["カウントダウン"], hint: "ネクロバインダー_アンコ" },
+        { display: "フレンドシップ", accept: ["フレンドシップ"], hint: "ネクロバインダー・アンコ" },
+        { display: "影の衣", accept: ["影の衣"], hint: "ネクロバインダー・アンコ" },
+        { display: "骨強化", accept: ["骨強化"], hint: "ネクロバインダー・アンコ" },
+        { display: "殺意", accept: ["殺意"], hint: "ネクロバインダー・アンコ" },
+        { display: "死の舞踏", accept: ["死の舞踏"], hint: "ネクロバインダー・アンコ" },
+        { display: "紙の嵐", accept: ["紙の嵐"], hint: "ネクロバインダー・アンコ" },
+        { display: "憑依", accept: ["憑依"], hint: "ネクロバインダー・アンコ" },
+        { display: "呪肉の奇術", accept: ["呪肉の奇術"], hint: "ネクロバインダー・アンコ" },
+        // レア
+        { display: "ミザリー", accept: ["ミザリー"], hint: "ネクロバインダー・レア" },
+        { display: "根絶", accept: ["根絶"], hint: "ネクロバインダー・レア" },
+        { display: "ソウルストーム", accept: ["ソウルストーム"], hint: "ネクロバインダー・レア" },
+        { display: "絞首", accept: ["絞首"], hint: "ネクロバインダー・レア" },
+        { display: "刻限", accept: ["刻限"], hint: "ネクロバインダー・レア" },
+        { display: "大鎌", accept: ["大鎌"], hint: "ネクロバインダー・レア" },
+        { display: "絞り取り", accept: ["絞り取り"], hint: "ネクロバインダー・レア" },
+        { display: "バンシーの叫び", accept: ["バンシーの叫び"], hint: "ネクロバインダー・レア" },
+        { display: "オブリビオン", accept: ["オブリビオン"], hint: "ネクロバインダー・レア" },
+        { display: "運命共同体", accept: ["運命共同体"], hint: "ネクロバインダー・レア" },
+        { display: "降霊術", accept: ["降霊術"], hint: "ネクロバインダー・レア" },
+        { display: "不死", accept: ["不死"], hint: "ネクロバインダー・レア" },
+        { display: "生贄", accept: ["生贄"], hint: "ネクロバインダー・レア" },
+        { display: "彼方への一瞥", accept: ["彼方への一瞥"], hint: "ネクロバインダー・レア" },
+        { display: "変貌", accept: ["変貌"], hint: "ネクロバインダー・レア" },
+        { display: "亡霊の儀", accept: ["亡霊の儀"], hint: "ネクロバインダー・レア" },
+        { display: "終末の日", accept: ["終末の日"], hint: "ネクロバインダー・レア" },
+        { display: "蘇生", accept: ["蘇生"], hint: "ネクロバインダー・レア" },
+        { display: "ニューロサージ", accept: ["ニューロサージ"], hint: "ネクロバインダー・レア" },
+        { display: "灰の精霊", accept: ["灰の精霊"], hint: "ネクロバインダー・レア" },
+        { display: "虚空の呼び声", accept: ["虚空の呼び声"], hint: "ネクロバインダー・レア" },
+        { display: "魂喰らい", accept: ["魂喰らい"], hint: "ネクロバインダー・レア" },
+        { display: "ネクロマスタリー", accept: ["ネクロマスタリー"], hint: "ネクロバインダー・レア" },
+        { display: "監視モード", accept: ["監視モード"], hint: "ネクロバインダー・レア" },
+        { display: "死神化", accept: ["死神化"], hint: "ネクロバインダー・レア" },
+        { display: "領域", accept: ["領域"], hint: "ネクロバインダー・レア" },
+        // エンシェント
+        { display: "プロテクター", accept: ["プロテクター"], hint: "ネクロバインダー・エンシェント" },
+        { display: "禁断の魔導書", accept: ["禁断の魔導書"], hint: "ネクロバインダー・エンシェント" },
+// --- ディフェクト ---
+        // スターター
+        { display: "ザップ", accept: ["ザップ"], hint: "ディフェクト・スターター" },
+        { display: "デュアルキャスト", accept: ["デュアルキャスト"], hint: "ディフェクト・スターター" },
+        // コモン
+        { display: "ビームセル", accept: ["ビームセル"], hint: "ディフェクト・コモン" },
+        { display: "爪", accept: ["爪"], hint: "ディフェクト・コモン" },
+        { display: "目潰し", accept: ["目潰し"], hint: "ディフェクト・コモン" },
+        { display: "コンパイル・ドライバ", accept: ["コンパイル・ドライバ"], hint: "ディフェクト・コモン" },
+        { display: "ビーム一掃", accept: ["ビーム一掃"], hint: "ディフェクト・コモン" },
+        { display: "フォーカスストライク", accept: ["フォーカスストライク"], hint: "ディフェクト・コモン" },
+        { display: "ヘドロ投げ", accept: ["ヘドロ投げ"], hint: "ディフェクト・コモン" },
+        { display: "ボールライトニング", accept: ["ボールライトニング"], hint: "ディフェクト・コモン" },
+        { display: "モメンタムストライク", accept: ["モメンタムストライク"], hint: "ディフェクト・コモン" },
+        { display: "寒波", accept: ["寒波"], hint: "ディフェクト・コモン" },
+        { display: "集中砲火", accept: ["集中砲火"], hint: "ディフェクト・コモン" },
+        { display: "大騒ぎ", accept: ["大騒ぎ"], hint: "ディフェクト・コモン" },
+        { display: "ホットフィックス", accept: ["ホットフィックス"], hint: "ディフェクト・コモン" },
+        { display: "加速！", accept: ["加速！", "加速!", "加速"], hint: "ディフェクト・コモン" },
+        { display: "緊急回避", accept: ["緊急回避"], hint: "ディフェクト・コモン" },
+        { display: "バッテリー充電", accept: ["バッテリー充電"], hint: "ディフェクト・コモン" },
+        { display: "ホログラム", accept: ["ホログラム"], hint: "ディフェクト・コモン" },
+        { display: "跳躍", accept: ["跳躍"], hint: "ディフェクト・コモン" },
+        { display: "避雷針", accept: ["避雷針"], hint: "ディフェクト・コモン" },
+        { display: "冷静沈着", accept: ["冷静沈着"], hint: "ディフェクト・コモン" },
+        // アンコ
+        { display: "FTL", accept: ["FTL"], hint: "ディフェクト・アンコ" },
+        { display: "テスラコイル", accept: ["テスラコイル"], hint: "ディフェクト・アンコ" },
+        { display: "スクレイプ", accept: ["スクレイプ"], hint: "ディフェクト・アンコ" },
+        { display: "シンセシス", accept: ["シンセシス"], hint: "ディフェクト・アンコ" },
+        { display: "ヌル", accept: ["ヌル"], hint: "ディフェクト・アンコ" },
+        { display: "ロケットパンチ", accept: ["ロケットパンチ"], hint: "ディフェクト・アンコ" },
+        { display: "屈折", accept: ["屈折"], hint: "ディフェクト・アンコ" },
+        { display: "切断", accept: ["切断"], hint: "ディフェクト・アンコ" },
+        { display: "オーバークロック", accept: ["オーバークロック"], hint: "ディフェクト・アンコ" },
+        { display: "テンペスト", accept: ["テンペスト"], hint: "ディフェクト・アンコ" },
+        { display: "寒気", accept: ["寒気"], hint: "ディフェクト・アンコ" },
+        { display: "起動シーケンス", accept: ["起動シーケンス"], hint: "ディフェクト・アンコ" },
+        { display: "エナジーサージ", accept: ["エナジーサージ"], hint: "ディフェクト・アンコ" },
+        { display: "ガラス細工", accept: ["ガラス細工"], hint: "ディフェクト・アンコ" },
+        { display: "スキム", accept: ["スキム"], hint: "ディフェクト・アンコ" },
+        { display: "ダブルエナジー", accept: ["ダブルエナジー"], hint: "ディフェクト・アンコ" },
+        { display: "ホワイトノイズ", accept: ["ホワイトノイズ"], hint: "ディフェクト・アンコ" },
+        { display: "圧縮", accept: ["圧縮"], hint: "ディフェクト・アンコ" },
+        { display: "暗黒", accept: ["暗黒"], hint: "ディフェクト・アンコ" },
+        { display: "強行突破", accept: ["強行突破"], hint: "ディフェクト・アンコ" },
+        { display: "混沌", accept: ["混沌"], hint: "ディフェクト・アンコ" },
+        { display: "同期", accept: ["同期"], hint: "ディフェクト・アンコ" },
+        { display: "廃品回収", accept: ["廃品回収"], hint: "ディフェクト・アンコ" },
+        { display: "シャドウシールド", accept: ["シャドウシールド"], hint: "ディフェクト・アンコ" },
+        { display: "氷河", accept: ["氷河"], hint: "ディフェクト・アンコ" },
+        { display: "融合", accept: ["融合"], hint: "ディフェクト・アンコ" },
+        { display: "コンデンサ", accept: ["コンデンサ"], hint: "ディフェクト・アンコ" },
+        { display: "サブルーティン", accept: ["サブルーティン"], hint: "ディフェクト・アンコ" },
+        { display: "サンダー", accept: ["サンダー"], hint: "ディフェクト・アンコ" },
+        { display: "ストーム", accept: ["ストーム"], hint: "ディフェクト・アンコ" },
+        { display: "ヘイルストーム", accept: ["ヘイルストーム"], hint: "ディフェクト・アンコ" },
+        { display: "ループ", accept: ["ループ"], hint: "ディフェクト・アンコ" },
+        { display: "煙突", accept: ["煙突"], hint: "ディフェクト・アンコ" },
+        { display: "反復", accept: ["反復"], hint: "ディフェクト・アンコ" },
+        { display: "肉体改造", accept: ["肉体改造"], hint: "ディフェクト・アンコ" },
+        { display: "野生", accept: ["野生"], hint: "ディフェクト・アンコ" },
+        // レア
+        { display: "螺旋ドリル", accept: ["螺旋ドリル"], hint: "ディフェクト・レア" },
+        { display: "粉砕", accept: ["粉砕"], hint: "ディフェクト・レア" },
+        { display: "アダプティブストライク", accept: ["アダプティブストライク"], hint: "ディフェクト・レア" },
+        { display: "オール・フォー・ワン", accept: ["オール・フォー・ワン"], hint: "ディフェクト・レア" },
+        { display: "ハイパービーム", accept: ["ハイパービーム"], hint: "ディフェクト・レア" },
+        { display: "対空砲", accept: ["対空砲"], hint: "ディフェクト・レア" },
+        { display: "アイスランス", accept: ["アイスランス"], hint: "ディフェクト・レア" },
+        { display: "メテオストライク", accept: ["メテオストライク"], hint: "ディフェクト・レア" },
+        { display: "マルチキャスト", accept: ["マルチキャスト"], hint: "ディフェクト・レア" },
+        { display: "改造", accept: ["改造"], hint: "ディフェクト・レア" },
+        { display: "再起動", accept: ["再起動"], hint: "ディフェクト・レア" },
+        { display: "超臨界", accept: ["超臨界"], hint: "ディフェクト・レア" },
+        { display: "イグニッション", accept: ["イグニッション"], hint: "ディフェクト・レア" },
+        { display: "遺伝的アルゴリズム", accept: ["遺伝的アルゴリズム"], hint: "ディフェクト・レア" },
+        { display: "信号増幅", accept: ["信号増幅"], hint: "ディフェクト・レア" },
+        { display: "レインボー", accept: ["レインボー"], hint: "ディフェクト・レア" },
+        { display: "電圧上昇", accept: ["電圧上昇"], hint: "ディフェクト・レア" },
+        { display: "スピナー", accept: ["スピナー"], hint: "ディフェクト・レア" },
+        { display: "デフラグ", accept: ["デフラグ"], hint: "ディフェクト・レア" },
+        { display: "機械学習", accept: ["機械学習"], hint: "ディフェクト・レア" },
+        { display: "災い転じて", accept: ["災い転じて"], hint: "ディフェクト・レア" },
+        { display: "冷却材", accept: ["冷却材"], hint: "ディフェクト・レア" },
+        { display: "バッファー", accept: ["バッファー"], hint: "ディフェクト・レア" },
+        { display: "貪る影", accept: ["貪る影"], hint: "ディフェクト・レア" },
+        { display: "クリエイティブAI", accept: ["クリエイティブAI"], hint: "ディフェクト・レア" },
+        { display: "反響化", accept: ["反響化"], hint: "ディフェクト・レア" },
+        // エンシェント
+        { display: "クアッドキャスト", accept: ["クアッドキャスト"], hint: "ディフェクト・エンシェント" },
+        { display: "認知偏向", accept: ["認知偏向"], hint: "ディフェクト・エンシェント" },
+// --- 共通カード ---
+        // アンコ
+        { display: "一閃", accept: ["一閃"], hint: "共通カード・アンコ" },
+        { display: "劇的な入場", accept: ["劇的な入場"], hint: "共通カード・アンコ" },
+        { display: "四方斬り", accept: ["四方斬り"], hint: "共通カード・アンコ" },
+        { display: "連射", accept: ["連射"], hint: "共通カード・アンコ" },
+        { display: "シーカーストライク", accept: ["シーカーストライク"], hint: "共通カード・アンコ" },
+        { display: "マインドブラスト", accept: ["マインドブラスト"], hint: "共通カード・アンコ" },
+        { display: "究極のストライク", accept: ["究極のストライク"], hint: "共通カード・アンコ" },
+        { display: "共鳴の手斧", accept: ["共鳴の手斧"], hint: "共通カード・アンコ" },
+        { display: "拳闘", accept: ["拳闘"], hint: "共通カード・アンコ" },
+        { display: "総攻撃", accept: ["総攻撃"], hint: "共通カード・アンコ" },
+        { display: "タッグチーム", accept: ["タッグチーム"], hint: "共通カード・アンコ" },
+        { display: "お前を信じる", accept: ["お前を信じる"], hint: "共通カード・アンコ" },
+        { display: "闇の足枷", accept: ["闇の足枷"], hint: "共通カード・アンコ" },
+        { display: "延長", accept: ["延長"], hint: "共通カード・アンコ" },
+        { display: "何でも屋", accept: ["何でも屋"], hint: "共通カード・アンコ" },
+        { display: "苛立ち", accept: ["苛立ち"], hint: "共通カード・アンコ" },
+        { display: "技巧", accept: ["技巧"], hint: "共通カード・アンコ" },
+        { display: "焦燥", accept: ["焦燥"], hint: "共通カード・アンコ" },
+        { display: "生産", accept: ["生産"], hint: "共通カード・アンコ" },
+        { display: "先読み", accept: ["先読み"], hint: "共通カード・アンコ" },
+        { display: "非常ボタン", accept: ["非常ボタン"], hint: "共通カード・アンコ" },
+        { display: "祓い清め", accept: ["祓い清め"], hint: "共通カード・アンコ" },
+        { display: "インターセプト", accept: ["インターセプト"], hint: "共通カード・アンコ" },
+        { display: "スプラッシュ", accept: ["スプラッシュ"], hint: "共通カード・アンコ" },
+        { display: "究極の防御", accept: ["究極の防御"], hint: "共通カード・アンコ" },
+        { display: "作戦会議", accept: ["作戦会議"], hint: "共通カード・アンコ" },
+        { display: "持ち上げ", accept: ["持ち上げ"], hint: "共通カード・アンコ" },
+        { display: "発見", accept: ["発見"], hint: "共通カード・アンコ" },
+        { display: "連携", accept: ["連携"], hint: "共通カード・アンコ" },
+        { display: "均衡", accept: ["均衡"], hint: "共通カード・アンコ" },
+        { display: "衝撃波", accept: ["衝撃波"], hint: "共通カード・アンコ" },
+        { display: "天変地異", accept: ["天変地異"], hint: "共通カード・アンコ" },
+        { display: "爆弾", accept: ["爆弾"], hint: "共通カード・アンコ" },
+        { display: "威風堂々", accept: ["威風堂々"], hint: "共通カード・アンコ" },
+        { display: "ウォームアップ", accept: ["ウォームアップ"], hint: "共通カード・アンコ" },
+        { display: "オートメーション", accept: ["オートメーション"], hint: "共通カード・アンコ" },
+        { display: "計略", accept: ["計略"], hint: "共通カード・アンコ" },
+        { display: "締め直し", accept: ["締め直し"], hint: "共通カード・アンコ" },
+        { display: "武勇", accept: ["武勇"], hint: "共通カード・アンコ" },
+        // レア
+        { display: "ボーラ", accept: ["ボーラ"], hint: "共通カード・レア" },
+        { display: "一斉射撃", accept: ["一斉射撃"], hint: "共通カード・レア" },
+        { display: "金の斧", accept: ["金の斧"], hint: "共通カード・レア" },
+        { display: "強欲の手", accept: ["強欲の手"], hint: "共通カード・レア" },
+        { display: "裂傷", accept: ["裂傷"], hint: "共通カード・レア" },
+        { display: "ジャックポット", accept: ["ジャックポット"], hint: "共通カード・レア" },
+        { display: "ノックダウン", accept: ["ノックダウン"], hint: "共通カード・レア" },
+        { display: "シークレットウェポン", accept: ["シークレットウェポン"], hint: "共通カード・レア" },
+        { display: "シークレットテクニック", accept: ["シークレットテクニック"], hint: "共通カード・レア" },
+        { display: "戦略家", accept: ["戦略家"], hint: "共通カード・レア" },
+        { display: "背水の陣", accept: ["背水の陣"], hint: "共通カード・レア" },
+        { display: "ものまね", accept: ["ものまね"], hint: "共通カード・レア" },
+        { display: "隠された宝石", accept: ["隠された宝石"], hint: "共通カード・レア" },
+        { display: "聖なる選別", accept: ["聖なる選別"], hint: "共通カード・レア" },
+        { display: "走り書き", accept: ["走り書き"], hint: "共通カード・レア" },
+        { display: "錬金術", accept: ["錬金術"], hint: "共通カード・レア" },
+        { display: "結集", accept: ["結集"], hint: "共通カード・レア" },
+        { display: "ビートダウン", accept: ["ビートダウン"], hint: "共通カード・レア" },
+        { display: "エントロピー", accept: ["エントロピー"], hint: "共通カード・レア" },
+        { display: "希望の道標", accept: ["希望の道標"], hint: "共通カード・レア" },
+        { display: "郷愁", accept: ["郷愁"], hint: "共通カード・レア" },
+        { display: "騒乱", accept: ["騒乱"], hint: "共通カード・レア" },
+        { display: "カラミティ", accept: ["カラミティ"], hint: "共通カード・レア" },
+        { display: "大岩転がし", accept: ["大岩転がし"], hint: "共通カード・レア" },
+        { display: "不滅の鎧", accept: ["不滅の鎧"], hint: "共通カード・レア" },
+        { display: "ネオーの怒り", accept: ["ネオーの怒り"], hint: "共通カード・エンシェント" },
+        { display: "引き裂き", accept: ["引き裂き"], hint: "共通カード・エンシェント" },
+        { display: "ホイッスル", accept: ["ホイッスル"], hint: "共通カード・エンシェント" },
+        { display: "願い", accept: ["願い"], hint: "共通カード・エンシェント" },
+        { display: "極光の炎", accept: ["極光の炎"], hint: "共通カード・エンシェント" },
+        { display: "幻姿", accept: ["幻姿"], hint: "共通カード・エンシェント" },
+        { display: "神格化", accept: ["神格化"], hint: "共通カード・エンシェント" },
+        { display: "リラックス", accept: ["リラックス"], hint: "共通カード・エンシェント" },
+// --- イベント入手 ---
+        { display: "クラッシュ", accept: ["クラッシュ"], hint: "イベント入手・コモン" },
+        { display: "ビャードの急襲", accept: ["ビャードの急襲"], hint: "イベント入手・コモン" },
+        { display: "ついばみ", accept: ["ついばみ"], hint: "イベント入手・コモン" },
+        { display: "リバウンド", accept: ["リバウンド"], hint: "イベント入手・コモン" },
+        { display: "狂奔", accept: ["狂奔"], hint: "イベント入手・コモン" },
+        { display: "押しつぶし", accept: ["押しつぶし"], hint: "イベント入手・コモン" },
+        { display: "駆除", accept: ["駆除"], hint: "イベント入手・コモン" },
+        { display: "フードファイト", accept: ["フードファイト"], hint: "イベント入手・コモン" },
+        { display: "啓発", accept: ["啓発"], hint: "イベント入手・コモン" },
+        { display: "スタック", accept: ["スタック"], hint: "イベント入手・コモン" },
+        { display: "先読み", accept: ["先読み"], hint: "イベント入手・コモン" },
+        { display: "動揺", accept: ["動揺"], hint: "イベント入手・コモン" },
+        { display: "二刀流", accept: ["二刀流"], hint: "イベント入手・コモン" },
+        { display: "メタモルフォーゼ", accept: ["メタモルフォーゼ"], hint: "イベント入手・コモン" },
+        { display: "円環の障壁", accept: ["円環の障壁"], hint: "イベント入手・コモン" },
+        { display: "塹壕", accept: ["塹壕"], hint: "イベント入手・コモン" },
+        { display: "ハロー・ワールド", accept: ["ハロー・ワールド"], hint: "イベント入手・コモン" },
+        { display: "まきびし", accept: ["まきびし"], hint: "イベント入手・コモン" },
+        { display: "マッド・サイエンス", accept: ["マッド・サイエンス"], hint: "イベント入手・コモン" },
+        { display: "ビャードニスの卵", accept: ["ビャードニスの卵"], hint: "クエスト・コモン" },
+        { display: "ランタンの鍵", accept: ["ランタンの鍵"], hint: "クエスト・コモン" },
+        { display: "戦利品の地図", accept: ["戦利品の地図"], hint: "クエスト・コモン" },
+// --- 生成カード ---
+        { display: "ナイフ", accept: ["ナイフ"], hint: "サイレント・コモン" },
+        { display: "ミニオンストライク", accept: ["ミニオンストライク"], hint: "リージェント・コモン" },
+        { display: "索敵の眼差し", accept: ["索敵の眼差し"], hint: "ネクロバインダー・コモン" },
+        { display: "ミニオンの特攻	", accept: ["ミニオンの特攻	"], hint: "リージェント・コモン" },
+        { display: "巨大な岩", accept: ["巨大な岩"], hint: "アイアンクラッド・コモン" },
+        { display: "ソヴリン・ブレード", accept: ["ソヴリン・ブレード"], hint: "リージェント・コモン" },
+        { display: "ソウル", accept: ["ソウル"], hint: "ネクロバインダー・コモン" },
+        { display: "ミニオンの盾", accept: ["ミニオンの盾"], hint: "リージェント・コモン" },
+        { display: "燃料", accept: ["燃料"], hint: "ディフェクト・コモン" },
+        { display: "発光", accept: ["発光"], hint: "レリック・コモン" },
+// --- 状態異常 ---
+        { display: "すす", accept: ["すす"], hint: "状態異常" },
+        { display: "めまい", accept: ["めまい"], hint: "状態異常" },
+        { display: "火傷", accept: ["火傷"], hint: "状態異常" },
+        { display: "感染", accept: ["感染"], hint: "状態異常" },
+        { display: "虚無", accept: ["虚無"], hint: "状態異常" },
+        { display: "負傷", accept: ["負傷"], hint: "状態異常" },
+        { display: "デブリ", accept: ["デブリ"], hint: "状態異常" },
+        { display: "決死の逃亡", accept: ["決死の逃亡"], hint: "状態異常" },
+        { display: "手招き", accept: ["手招き"], hint: "状態異常" },
+        { display: "毒素", accept: ["毒素"], hint: "状態異常" },
+        { display: "粘液", accept: ["粘液"], hint: "状態異常" },
+        // --- 呪い ---
+        { display: "アセンダーの災厄", accept: ["アセンダーの災厄"], hint: "呪い" },
+        { display: "怪我", accept: ["怪我"], hint: "呪い" },
+        { display: "疑念", accept: ["疑念"], hint: "呪い" },
+        { display: "強欲", accept: ["強欲"], hint: "呪い" },
+        { display: "苦悩", accept: ["苦悩"], hint: "呪い" },
+        { display: "愚行", accept: ["愚行"], hint: "呪い" },
+        { display: "後悔", accept: ["後悔"], hint: "呪い" },
+        { display: "罪悪感", accept: ["罪悪感"], hint: "呪い" },
+        { display: "鐘の呪い", accept: ["鐘の呪い"], hint: "呪い" },
+        { display: "寝不足", accept: ["寝不足"], hint: "呪い" },
+        { display: "不運", accept: ["不運"], hint: "呪い" },
+        { display: "不器用", accept: ["不器用"], hint: "呪い" },
+        { display: "腐敗", accept: ["腐敗"], hint: "呪い" },
+        { display: "負債", accept: ["負債"], hint: "呪い" },
+        { display: "凡庸", accept: ["凡庸"], hint: "呪い" },
+        { display: "羞恥", accept: ["羞恥"], hint: "呪い" },
+        { display: "菌糸の汚染", accept: ["菌糸の汚染"], hint: "呪い" },
+        { display: "心酔", accept: ["心酔"], hint: "呪い" }
+    ];
+
+    let foundCount = 0;
+    let isGameOver = false;
+    let answeredIndices = new Set();
+
+    const input = document.getElementById('answerInput');
+    const remainingText = document.getElementById('remaining');
+    const totalText = document.getElementById('total');
+    const listContainer = document.getElementById('answerList');
+    const messageEl = document.getElementById('message');
+    const giveupBtn = document.getElementById('giveupBtn');
+    const retryBtn = document.getElementById('retryBtn');
+    const limitFill = document.getElementById('limitFill');
+    const gaugeWrapper = document.getElementById('gaugeWrapper');
+
+    // 表示用にヒントからレアリティ文字を削除する関数
+    function formatHintForDisplay(hint) {
+        return hint.replace(/・(スターター|コモン|アンコ|レア|エンシェント)/, "");
+    }
+
+    function getClassByHint(hint) {
+        if (hint.includes("アイアンクラッド")) return "cls-ironclad";
+        if (hint.includes("サイレント")) return "cls-silent";
+        if (hint.includes("ディフェクト")) return "cls-defect";
+        if (hint.includes("ウォッチャー")) return "cls-watcher";
+        if (hint.includes("リージェント")) return "cls-regent";
+        if (hint.includes("ネクロバインダー")) return "cls-necro";
+        if (hint.includes("状態異常") || hint.includes("呪い")) return "cls-curse";
+        return "cls-common";
+    }
+
+    function getRarityClass(hint) {
+        if (hint.includes("スターター")) return "hint-starter";
+        if (hint.includes("コモン")) return "hint-コモン";
+        if (hint.includes("アンコ")) return "hint-アンコ";
+        if (hint.includes("レア")) return "hint-レア";
+        if (hint.includes("エンシェント")) return "hint-エンシェント";
+        return "";
+    }
+
+    function updateLimitGauge() {
+        const percent = Math.floor((foundCount / quizData.length) * 100);
+        if(limitFill) limitFill.style.width = percent + "%";
+        const percentDisplay = document.getElementById('progressPercent');
+        if (percentDisplay) {
+            percentDisplay.textContent = (foundCount === quizData.length) ? "VICTORY!" : percent + "%";
+        }
+        if (foundCount === quizData.length && quizData.length > 0) {
+            gaugeWrapper.classList.add('limit-max');
+        } else {
+            gaugeWrapper.classList.remove('limit-max');
+        }
+    }
+
+    function init() {
+        foundCount = 0;
+        isGameOver = false;
+        answeredIndices.clear();
+        listContainer.innerHTML = '';
+        input.disabled = false;
+        input.value = '';
+        input.placeholder = config.placeholderNormal;
+        giveupBtn.style.display = 'inline-block';
+        retryBtn.style.display = 'none';
+        remainingText.textContent = quizData.length;
+        totalText.textContent = quizData.length;
+        messageEl.textContent = '';
+
+        quizData.forEach((item, index) => {
+            const div = document.createElement('div');
+            const colorCls = getClassByHint(item.hint);
+            const rarityCls = getRarityClass(item.hint);
+            const displayHint = formatHintForDisplay(item.hint); // 表示用ヒント
+            div.className = `item ${colorCls}`;
+            div.id = 'target-' + index;
+            div.innerHTML = `<div class="hint-text ${rarityCls}">${displayHint}</div><div class="answer-text">???</div>`;
+            listContainer.appendChild(div);
+        });
+
+        loadProgress();
+        updateLimitGauge();
+    }
+
+    function loadProgress() {
+        const savedData = localStorage.getItem(config.storageKey);
+        if (savedData) {
+            const savedIndices = JSON.parse(savedData);
+            savedIndices.forEach(index => {
+                if (index < quizData.length) {
+                    answeredIndices.add(index);
+                    updateItemDisplay(index, true, false);
+                    foundCount++;
+                }
+            });
+            remainingText.textContent = quizData.length - foundCount;
+            if (foundCount > 0) showMessage("データをロードしました", "#8c7851");
+            if (foundCount === quizData.length) finishGame("ALL CARDS COLLECTED", "gold");
+        }
+        updateLimitGauge();
+    }
+
+    function saveProgress() {
+        localStorage.setItem(config.storageKey, JSON.stringify(Array.from(answeredIndices)));
+    }
+
+    input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !isGameOver) {
+            const val = input.value.trim();
+            if (val === "") return;
+            let targetIndex = quizData.findIndex(item => item.accept.includes(val));
+
+            if (targetIndex !== -1) {
+                if (answeredIndices.has(targetIndex)) {
+                    showMessage("回答済みです", "#8c7851");
+                    document.getElementById('target-' + targetIndex).scrollIntoView({ behavior: 'smooth', block: 'center' });
+                } else {
+                    answeredIndices.add(targetIndex);
+                    updateItemDisplay(targetIndex, true, true);
+                    foundCount++;
+                    remainingText.textContent = quizData.length - foundCount;
+                    showMessage("正解！", "#7fff00");
+                    saveProgress();
+                    updateLimitGauge();
+                    if (foundCount === quizData.length) finishGame("VICTORY!", "gold");
+                }
+            } else {
+                showMessage("対象が存在しません", "#ff4444");
+            }
+            input.value = '';
+        }
+    });
+
+    function updateItemDisplay(index, isCorrect, shouldScroll) {
+        const targetEl = document.getElementById('target-' + index);
+        const data = quizData[index];
+        const rarityCls = getRarityClass(data.hint);
+        const displayHint = formatHintForDisplay(data.hint); // 表示用ヒント
+        
+        targetEl.innerHTML = `
+            <div class="hint-text ${rarityCls}">${displayHint}</div>
+            <div class="answer-text">${data.display}</div>
+        `;
+        
+        if (isCorrect) {
+            targetEl.classList.add('found');
+            if (shouldScroll) {
+                targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        } else {
+            targetEl.classList.add('missed');
+        }
+    }
+
+    giveupBtn.addEventListener('click', () => {
+        revealAllAnswers();
+        finishGame("RUN OVER", "#ff4444");
+    });
+
+    retryBtn.addEventListener('click', () => {
+        if(confirm("全ての記録を抹消してリスタートしますか？")) {
+            localStorage.removeItem(config.storageKey);
+            init();
+        }
+    });
+
+    function revealAllAnswers() {
+        quizData.forEach((item, index) => {
+            if (!answeredIndices.has(index)) {
+                updateItemDisplay(index, false, false);
+            }
+        });
+    }
+
+    function finishGame(msg, color) {
+        isGameOver = true;
+        input.disabled = true;
+        input.placeholder = config.placeholderGameOver;
+        giveupBtn.style.display = 'none';
+        retryBtn.style.display = 'inline-block';
+        showMessage(msg, color);
+    }
+
+    function showMessage(text, color) {
+        messageEl.textContent = text;
+        messageEl.style.color = color;
+        if (!isGameOver) {
+            setTimeout(() => { if (messageEl.textContent === text) messageEl.textContent = ""; }, 1500);
+        }
+    }
+
+    init();
+</script>
+</body>
+</html>
