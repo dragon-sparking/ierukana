@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>歴代ゲームハード別 売上ランキングTOP10 いえるかな</title>
+    <style>
+        /* 全体：白を基調としたシンプルなスタイル */
+        body {
+            font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", sans-serif;
+            text-align: center;
+            padding: 0;
+            background: #f4f7f6;
+            color: #333;
+            margin: 0;
+        }
+
+        .container { 
+            max-width: 1400px; 
+            margin: 0 auto; 
+            background: #fff; 
+            padding: 20px; 
+            min-height: 100vh;
+            box-shadow: 0 0 20px rgba(0,0,0,0.05);
+        }
+
+        /* ヘッダー */
+        .sticky-header { 
+            position: sticky; 
+            top: 0; 
+            background: rgba(255, 255, 255, 0.97); 
+            padding: 20px 0; 
+            z-index: 100; 
+            border-bottom: 1px solid #ddd; 
+            margin-bottom: 25px; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+        }
+
+        h2 { 
+            margin: 0 0 15px 0; 
+            color: #2c3e50; 
+            font-size: 1.8em;
+        }
+
+        /* ゲージ */
+        .limit-gauge-outer {
+            max-width: 600px;
+            margin: 10px auto;
+            padding: 4px;
+            background: #eee; 
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .limit-gauge-bg {
+            flex-grow: 1;
+            height: 12px;
+            background: #ddd;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #limitFill {
+            height: 100%;
+            width: 0%;
+            background: #4caf50;
+            transition: width 0.4s ease-out;
+        }
+
+        .limit-label {
+            font-size: 14px;
+            font-weight: bold;
+            color: #666;
+            min-width: 40px;
+        }
+
+        .status { margin: 10px 0; font-size: 1.1em; color: #666; font-weight: bold; }
+        #message { height: 24px; font-weight: bold; margin-bottom: 10px; font-size: 1em; }
+
+        input { 
+            font-size: 18px; 
+            padding: 10px 15px; 
+            width: 60%; 
+            max-width: 400px;
+            border: 2px solid #ddd; 
+            border-radius: 5px;
+            background: #fff; 
+            outline: none;
+            transition: border-color 0.2s;
+            text-align: center;
+        }
+        input:focus { border-color: #2196f3; }
+
+        .btn { 
+            padding: 10px 20px; 
+            font-size: 14px; 
+            cursor: pointer; 
+            border: none;
+            border-radius: 5px;
+            background: #666; 
+            color: #fff; 
+            font-weight: bold;
+            margin: 5px;
+        }
+        .btn:hover { opacity: 0.9; }
+        .giveup-btn { background: #e53935; }
+        .retry-btn { background: #1e88e5; }
+
+        /* リスト表示：横に最大5個ぴったり並ぶように固定 */
+        .list { 
+            display: grid; 
+            grid-template-columns: repeat(5, minmax(0, 1fr)); 
+            gap: 12px; 
+            margin-top: 30px; 
+        }
+
+        /* 画面幅が狭いときは崩れないようレスポンシブ対応 */
+        @media (max-width: 1200px) {
+            .list { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        }
+        @media (max-width: 900px) {
+            .list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 500px) {
+            .list { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+        }
+
+        .item { 
+            padding: 15px 10px; 
+            background: #fafafa;
+            border: 1px solid #eef0f2;
+            border-radius: 8px;
+            color: #bbb; 
+            transition: all 0.3s ease;
+            word-break: break-all;
+        }
+
+        .hint-text { font-size: 0.8em; font-weight: bold; margin-bottom: 5px; }
+        .answer-text { font-size: 0.95em; font-weight: bold; margin-top: 5px; }
+        
+        .item.missed { background: #ffebee !important; border-color: #ef9a9a !important; color: #ef5350 !important; box-shadow: none !important; }
+        .item.missed .answer-text { text-decoration: line-through; }
+        .item.missed .hint-text { color: #e53935 !important; }
+
+        /* ==========================================================================
+           ハード別デザインスタイル（正解時）
+           ========================================================================== */
+
+        /* FC (ファミコン) */
+        .fc-card.found { background: #8b1d1d !important; color: #fff !important; border: 2px solid #d4af37 !important; }
+        .fc-card .hint-text { color: #8b1d1d; }
+        .fc-card.found .hint-text { color: #ffeb3b; }
+
+        /* SFC (スーパーファミコン) */
+        .sfc-card.found {
+            background: #d1d5db !important; color: #333 !important; border: 2px solid #4b5563 !important;
+            box-shadow: inset 4px 0 0 #ff3b30, inset 8px 0 0 #007aff, inset 12px 0 0 #ffcc00, inset 16px 0 0 #4cd964; padding-left: 15px;
+        }
+        .sfc-card .hint-text { color: #4b5563; }
+        .sfc-card.found .hint-text { color: #555; }
+
+        /* N64 */
+        .n64-card.found { background: #2c3e50 !important; color: #fff !important; border: 2px solid #34495e !important; box-shadow: inset 6px 0 0 #e74c3c, inset 12px 0 0 #3498db, inset 18px 0 0 #f1c40f, inset 24px 0 0 #2ecc71; padding-left: 20px; }
+        .n64-card .hint-text { color: #34495e; }
+        .n64-card.found .hint-text { color: #bdc3c7; }
+
+        /* GC */
+        .gc-card.found { background: #4a3b8c !important; color: #fff !important; border: 2px solid #6c5ce7 !important; }
+        .gc-card .hint-text { color: #4a3b8c; }
+        .gc-card.found .hint-text { color: #a29bfe; }
+
+        /* Wii */
+        .wii-card.found { background: #ffffff !important; color: #333 !important; border: 2px solid #00a0e9 !important; box-shadow: 0 4px 10px rgba(0,160,233,0.2); }
+        .wii-card .hint-text { color: #00a0e9; }
+        .wii-card.found .hint-text { color: #00a0e9; }
+
+        /* Switch */
+        .sw-card.found { background: #101010 !important; color: #fff !important; border: 2px solid #323232 !important; box-shadow: inset 6px 0 0 #ff3c50, inset -6px 0 0 #00b4d2; }
+        .sw-card .hint-text { color: #ff3c50; }
+        .sw-card.found .hint-text { color: #00b4d2; }
+
+        /* Switch 2 */
+        .sw2-card.found { background: linear-gradient(135deg, #1a1a1a, #2d3436) !important; color: #fff !important; border: 2px solid #dcdde1 !important; box-shadow: inset 6px 0 0 #e63946, inset -6px 0 0 #457b9d; }
+        .sw2-card .hint-text { color: #e63946; }
+        .sw2-card.found .hint-text { color: #a8dadc; }
+
+        /* GB */
+        .gb-card.found { background: #8bac0f !important; color: #0f380f !important; border: 2px solid #306230 !important; }
+        .gb-card .hint-text { color: #306230; }
+        .gb-card.found .hint-text { color: #0f380f; }
+
+        /* GBA */
+        .gba-card.found { background: #583ca3 !important; color: #fff !important; border: 2px solid #e67e22 !important; }
+        .gba-card .hint-text { color: #583ca3; }
+        .gba-card.found .hint-text { color: #f39c12; }
+
+        /* DS */
+        .ds-card.found { background: #34495e !important; color: #fff !important; border: 2px solid #7f8c8d !important; border-top: 4px solid #bdc3c7 !important; border-bottom: 4px solid #bdc3c7 !important; }
+        .ds-card .hint-text { color: #7f8c8d; }
+        .ds-card.found .hint-text { color: #bdc3c7; }
+
+        /* 3DS */
+        .tds-card.found { background: #d32f2f !important; color: #fff !important; border: 2px solid #f44336 !important; box-shadow: inset 0 4px 0 rgba(255,255,255,0.3); }
+        .tds-card .hint-text { color: #d32f2f; }
+        .tds-card.found .hint-text { color: #ffcdd2; }
+
+        /* PS1 */
+        .ps1-card.found { background: #cdcdcd !important; color: #222 !important; border: 2px solid #999 !important; box-shadow: 1px 1px 0 #0056b3, 2px 2px 0 #f3c200, 3px 3px 0 #e4002b, 4px 4px 0 #00aa47; }
+        .ps1-card .hint-text { color: #555; }
+        .ps1-card.found .hint-text { color: #0056b3; }
+
+        /* PS2 */
+        .ps2-card.found { background: #000000 !important; color: #fff !important; border: 2px solid #0056b3 !important; box-shadow: inset 0 0 10px #0056b3; }
+        .ps2-card .hint-text { color: #0056b3; }
+        .ps2-card.found .hint-text { color: #00a0e9; }
+
+        /* PS3 */
+        .ps3-card.found { background: linear-gradient(to bottom, #111, #333) !important; color: #fff !important; border: 2px solid #555 !important; border-left: 5px solid #ff3b30 !important; }
+        .ps3-card .hint-text { color: #999; }
+        .ps3-card.found .hint-text { color: #ccc; }
+
+        /* PS4 */
+        .ps4-card.found { background: #003791 !important; color: #fff !important; border: 2px solid #002f7a !important; box-shadow: 0 3px 0 #001c4a; }
+        .ps4-card .hint-text { color: #003791; }
+        .ps4-card.found .hint-text { color: #809bbe; }
+
+        /* PS5 */
+        .ps5-card.found { background: #ffffff !important; color: #111 !important; border: 2px solid #00439c !important; border-radius: 4px 16px 4px 16px !important; box-shadow: inset 0 0 6px rgba(0,67,156,0.3); }
+        .ps5-card .hint-text { color: #00439c; }
+        .ps5-card.found .hint-text { color: #00439c; }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="sticky-header">
+        <h2>歴代ゲームハード別 売上ランキングTOP10 いえるかな</h2>
+        <div class="limit-gauge-outer" id="gaugeWrapper">
+            <div class="limit-gauge-bg">
+                <div id="limitFill"></div>
+            </div>
+            <div class="limit-label" id="progressPercent">0%</div> 
+        </div>
+        <div class="status">残り: <span id="remaining">--</span> / <span id="total">--</span></div>
+        <div id="message"></div>
+        <input type="text" id="answerInput" placeholder="名称を入力..." autofocus autocomplete="off">
+        <button class="btn giveup-btn" id="giveupBtn">ギブアップ</button>
+        <button class="btn retry-btn" id="retryBtn" style="display:none;">再挑戦</button>
+    </div>
+    <div class="list" id="answerList"></div>
+</div>
+
+<script>
+const config = {
+    placeholderNormal: "ソフト名を入力...",
+    placeholderGameOver: "終了",
+    storageKey: "game_sales_mega_quiz_v3"
+};
+
+const quizData = [
+    // === ファミコン ===
+    { display: "スーパーマリオブラザーズ", accept: ["スーパーマリオブラザーズ", "すーぱーまりおぶらざーず", "スーパーマリオ"], hint: "ファミコン 1位" },
+    { display: "スーパーマリオブラザーズ3", accept: ["スーパーマリオブラザーズ3", "スーパーマリオブラザーズスリー", "すーぱーまりおぶらざーず3", "スーパーマリオ3"], hint: "ファミコン 2位" },
+    { display: "ドラゴンクエスト3 そして伝説へ…", accept: ["ドラゴンクエスト3", "ドラクエ3", "どらごんくえすと3", "どらくえ3", "ドラゴンクエストiii"], hint: "ファミコン 3位" },
+    { display: "ドラゴンクエスト4 導かれし者たち", accept: ["ドラゴンクエスト4", "ドラクエ4", "どらごんくえすと4", "どらくえ4", "ドラゴンクエストiv"], hint: "ファミコン 4位" },
+    { display: "ゴルフ", accept: ["ゴルフ", "ごるふ"], hint: "ファミコン 5位" },
+    { display: "ドラゴンクエスト2 悪霊の神々", accept: ["ドラゴンクエスト2", "ドラクエ2", "どらごんくえすと2", "どらくえ2", "ドラゴンクエストii"], hint: "ファミコン 6位" },
+    { display: "ベースボール", accept: ["ベースボール", "べーすぼーる"], hint: "ファミコン 7位" },
+    { display: "麻雀", accept: ["麻雀", "まーじゃん"], hint: "ファミコン 8位" },
+    { display: "プロ野球ファミリースタジアム", accept: ["プロ野球ファミリースタジアム", "ファミリースタジアム", "ファミスタ", "ふぁみりーすたじあむ", "ふぁみすた"], hint: "ファミコン 9位" },
+    { display: "テトリス", accept: ["テトリス", "てとりす"], hint: "ファミコン 10位" },
+
+// === スーパーファミコン ===
+    { display: "スーパーマリオカート", accept: ["スーパーマリオカート", "すーぱーまりおかーと", "マリオカート", "まりおかーと", "マリカ", "まりか"], hint: "スーパーファミコン 1位" },
+    { display: "スーパーマリオワールド", accept: ["スーパーマリオワールド", "すーぱーまりおわーるど"], hint: "スーパーファミコン 2位" },
+    { display: "ドラゴンクエストVI 幻の大地", accept: ["ドラゴンクエスト6", "ドラクエ6", "どらごんくえすと6", "どらくえ6", "ドラゴンクエストvi", "どらごんくえすと6まぼろしのだいち", "ドラゴンクエスト6幻の大地"], hint: "スーパーファミコン 3位" },
+    { display: "スーパードンキーコング", accept: ["スーパードンキーコング", "すーぱーどんきーこんぐ", "ドンキーコング", "どんきーこんぐ", "スーパードンキーコング1"], hint: "スーパーファミコン 4位" },
+    { display: "ストリートファイターII", accept: ["ストリートファイター2", "すとりーとふぁいたー2", "スト2", "すと2", "ストリートファイターII", "すとりーとふぁいたーつー"], hint: "スーパーファミコン 5位" },
+    { display: "ドラゴンクエストV 天空の花嫁", accept: ["ドラゴンクエスト5", "ドラクエ5", "どらごんくえすと5", "どらくえ5", "ドラゴンクエストv", "どらごんくえすと5てんくうのはなよめ", "ドラゴンクエスト5天空の花嫁"], hint: "スーパーファミコン 6位" },
+    { display: "ファイナルファンタジーVI", accept: ["ファイナルファンタジー6", "ふぁいなるふぁんたじー6", "FF6", "えふえふ6", "ファイナルファンタジーvi", "ふぁいなるふぁんたじーしっくす"], hint: "スーパーファミコン 7位" },
+    { display: "ファイナルファンタジーV", accept: ["ファイナルファンタジー5", "ふぁいなるふぁんたじー5", "FF5", "えふえふ5", "ファイナルファンタジーv", "ふぁいなるふぁんたじーふぁいぶ"], hint: "スーパーファミコン 8位" },
+    { display: "スーパードンキーコング2 ディクシー＆ディディー", accept: ["スーパードンキーコング2", "すーぱーどんきーこんぐ2", "ドンキーコング2", "どんきーこんぐ2", "スーパードンキーコング2ディクシーandディディー"], hint: "スーパーファミコン 9位" },
+    { display: "スーパーマリオコレクション", accept: ["スーパーマリオコレクション", "すーぱーまりおこれくしょん", "マリオコレクション", "まりおこれくしょん", "マリコレ", "まりこれ"], hint: "スーパーファミコン 10位" },
+
+    // === ニンテンドー64 ===
+    { display: "マリオカート64", accept: ["マリオカート64", "まりおかーと64", "マリカ64", "まりか64", "まりおかーとろくよん", "まりおかーとろくじゅうよん"], hint: "ニンテンドー64 1位" },
+    { display: "スーパーマリオ64", accept: ["スーパーマリオ64", "すーぱーまりお64", "マリオ64", "まりお64", "すーぱーまりおろくよん", "すーぱーまりおろくじゅうよん"], hint: "ニンテンドー64 2位" },
+    { display: "ニンテンドウオールスター! 大乱闘スマッシュブラザーズ", accept: ["大乱闘スマッシュブラザーズ", "スマブラ", "すまぶら", "にんてんどうおーるすたーだいらんとうすまっしゅぶらざーず", "だいらんとうすまっしゅぶらざーず", "初代スマブラ"], hint: "ニンテンドー64 3位" },
+    { display: "ゼルダの伝説 時のオカリナ", accept: ["ゼルダの伝説時のオカリナ", "時のオカリナ", "時オカ", "ぜるだのでんせつときのおかりな", "ときのおかりな", "ときおか"], hint: "ニンテンドー64 4位" },
+    { display: "ポケモンスタジアム", accept: ["ポケモンスタジアム", "ポケスタ", "ぽけっともんすたーすたじあむ", "ぽけもんすたじあむ", "ぽけすた", "ポケモンスタジアム1"], hint: "ニンテンドー64 5位" },
+    { display: "マリオテニス64", accept: ["マリオテニス64", "まりおてにす64", "まりおてにすろくよん", "まりおてにすろくじゅうよん"], hint: "ニンテンドー64 6位" },
+    { display: "マリオパーティ2", accept: ["マリオパーティ2", "まりおぱーてぃ2", "マリパ2", "まりぱ2"], hint: "ニンテンドー64 7位" },
+    { display: "星のカービィ64", accept: ["星のカービィ64", "ほしのかーびぃ64", "カービィ64", "ほしのかーびぃろくよん", "ほしのかーびぃろくじゅうよん", "かーびぃろくよん", "かーびぃろくじゅうよん"], hint: "ニンテンドー64 8位" },
+    { display: "ヨッシーストーリー", accept: ["ヨッシーストーリー", "よっしーすとーりー"], hint: "ニンテンドー64 9位" },
+    { display: "ドンキーコング64", accept: ["ドンキーコング64", "どんきーこんぐ64", "どんきーこんぐろくよん", "どんきーこんぐろくじゅうよん"], hint: "ニンテンドー64 10位" },
+
+    // === ニンテンドーゲームキューブ ===
+    { display: "大乱闘スマッシュブラザーズDX", accept: ["大乱闘スマッシュブラザーズdx", "スマブラdx", "すまぶらdx", "だいらんとうすまっしゅぶらざーずでらっくす", "すまぶらでらっくす"], hint: "ニンテンドーゲームキューブ 1位" },
+    { display: "マリオパーティ4", accept: ["マリオパーティ4", "まりおぱーてぃ4", "マリパ4", "まりぱ4"], hint: "ニンテンドーゲームキューブ 2位" },
+    { display: "マリオカート ダブルダッシュ!!", accept: ["マリオカートダブルダッシュ", "まりおかーとだぶるだっしゅ", "マリカdd", "マリカダブルダッシュ"], hint: "ニンテンドーゲームキューブ 3位" },
+    { display: "スーパーマリオサンシャイン", accept: ["スーパーマリオサンシャイン", "すーぱーまりおさんしゃいん", "マリオサンシャイン"], hint: "ニンテンドーゲームキューブ 4位" },
+    { display: "ゼルダの伝説 風のタクト", accept: ["ゼルダの伝説風のタクト", "風のタクト", "風タク", "ぜるだのでんせつかぜのたくと", "かぜのたくと"], hint: "ニンテンドーゲームキューブ 5位" },
+    { display: "マリオパーティ5", accept: ["マリオパーティ5", "まりおぱーてぃ5", "マリパ5", "まりぱ5"], hint: "ニンテンドーゲームキューブ 6位" },
+    { display: "ポケモンコロシアム", accept: ["ポケモンコロシアム", "ぽけもんころしあむ", "ぽけっともんすたーころしあむ"], hint: "ニンテンドーゲームキューブ 7位" },
+    { display: "どうぶつの森+", accept: ["どうぶつの森+", "どうぶつの森プラス", "どうぶつのもりぷらす"], hint: "ニンテンドーゲームキューブ 8位" },
+    { display: "マリオパーティ6", accept: ["マリオパーティ6", "まりおぱーてぃ6", "マリパ6", "まりぱ6"], hint: "ニンテンドーゲームキューブ 9位" },
+    { display: "ピクミン", accept: ["ピクミン", "ぴくみん", "ピクミン1", "ぴくみん1"], hint: "ニンテンドーゲームキューブ 10位" },
+
+    // === Wii ===
+    { display: "New スーパーマリオブラザーズ Wii", accept: ["newスーパーマリオブラザーズwii", "ニュースーパーマリオブラザーズwii", "にゅーすーぱーまりおぶらざーずうぃい", "にゅーすーぱーまりおぶらざーずうぃー", "ニューマリオwii"], hint: "Wii 1位" },
+    { display: "マリオカートWii", accept: ["マリオカートwii", "まりおかーとwii", "マリカwii", "まりかうぃい", "まりかうぃー", "まりおかーとうぃい", "まりおかーとうぃー"], hint: "Wii 2位" },
+    { display: "Wii Sports", accept: ["wii sports", "wiiスポーツ", "うぃいすぽーつ", "うぃーすぽーつ", "ウィイスポーツ", "ウィースポーツ"], hint: "Wii 3位" },
+    { display: "Wii Fit", accept: ["wii fit", "wiiフィット", "うぃいふぃっと", "うぃーふぃっと", "ウィイフィット", "ウィーフィット"], hint: "Wii 4位" },
+    { display: "Wii Sports Resort", accept: ["wii sports resort", "wiiスポーツリゾート", "うぃいすぽーつりぞーと", "うぃーすぽーつりぞーと", "リゾート"], hint: "Wii 5位" },
+    { display: "はじめてのWii", accept: ["はじめてのwii", "はじめてのうぃい", "はじめてのうぃー"], hint: "Wii 6位" },
+    { display: "Wii Fit Plus", accept: ["wii fit plus", "wiiフィットプラス", "うぃいふぃっとぷらす", "うぃーふぃっとぷらす", "フィットプラス"], hint: "Wii 7位" },
+    { display: "Wii Party", accept: ["wii party", "wiiパーティ", "うぃいぱーてぃ", "うぃーぱーてぃ", "ウィイパーティ", "ウィーパーティ"], hint: "Wii 8位" },
+    { display: "大乱闘スマッシュブラザーズX", accept: ["大乱闘スマッシュブラザーズx", "スマブラx", "すまぶらx", "だいらんとうすまっしゅぶらざーずえっくす", "すまぶらえっくす"], hint: "Wii 9位" },
+    { display: "マリオパーティ8", accept: ["マリオパーティ8", "まりおぱーてぃ8", "マリパ8", "まりぱ8"], hint: "Wii 10位" },
+
+    // === ニンテンドーSwitch ===
+    { display: "あつまれ どうぶつの森", accept: ["あつまれどうぶつの森", "あつ森", "あつまれどうぶつのもり"], hint: "ニンテンドーSwitch 1位" },
+    { display: "マリオカート8 デラックス", accept: ["マリオカート8デラックス", "マリカ8DX", "まりおかーと8でらっくす"], hint: "ニンテンドーSwitch 2位" },
+    { display: "大乱闘スマッシュブラザーズ SPECIAL", accept: ["大乱闘スマッシュブラザーズSPECIAL", "スマブラSP", "大乱闘スマッシュブラザーズスペシャル", "スマブラスペシャル", "だいらんとうすまっしゅぶらざーずすぺしゃる", "だいらんとうすまっしゅぶらざーずえすぴー", "すまぶらすぺしゃる", "すまぶらえすぴー"], hint: "ニンテンドーSwitch 3位" },
+    { display: "ポケットモンスター スカーレット・バイオレット", accept: ["ポケットモンスタースカーレットバイオレット", "ポケモンSV", "ポケットモンスタースカーレット", "ポケットモンスターバイオレット", "ぽけっともんすたーすかーれっとばいおれっと", "ぽけっともんすたーすかーれっと", "ぽけっともんすたーばいおれっと"], hint: "ニンテンドーSwitch 4位" },
+    { display: "スプラトゥーン3", accept: ["スプラトゥーン3", "すぷらとぅーん3", "すぷらとぅーんすりー"], hint: "ニンテンドーSwitch 5位" },
+    { display: "ポケットモンスター ソード・シールド", accept: ["ポケットモンスターソードシールド", "ポケモン剣盾", "ポケットモンスターソード", "ポケットモンスターシールド", "ぽけっともんすたーそーど", "ぽけっともんすたーしーるど", "ぽけっともんすたーそーどしーるど"], hint: "ニンテンドーSwitch 6位" },
+    { display: "Minecraft", accept: ["マインクラフト", "まいんくらふと"], hint: "ニンテンドーSwitch 7位" },
+    { display: "スプラトゥーン2", accept: ["スプラトゥーン2", "すぷらとぅーん2"], hint: "ニンテンドーSwitch 8位" },
+    { display: "リングフィットアドベンチャー", accept: ["リングフィットアドベンチャー", "りんぐふぃっとあどべんちゃー"], hint: "ニンテンドーSwitch 9位" },
+    { display: "桃太郎電鉄 〜昭和 平成 令和も定番！〜", accept: ["桃太郎電鉄昭和平成令和も定番", "桃太郎電鉄", "ももたろうでんてつしょうわへいせいれいわもていばん", "ももたろうでんてつ"], hint: "ニンテンドーSwitch 10位" },
+
+    // === ニンテンドーSwitch 2 ===
+    { display: "マリオカートワールド", accept: ["マリオカートワールド", "まりおかーとわーるど"], hint: "ニンテンドーSwitch2 1位" },
+    { display: "Pokemon LEGENDS Z-A", accept: ["ポケモンレジェンズZA", "ぽけもんれじぇんずZA", "ぽけもんれじぇんずぜっとえー"], hint: "ニンテンドーSwitch2 2位" },
+    { display: "ぽこ あ ポケモン", accept: ["ぽこあポケモン", "ぽこあぽけもん"], hint: "ニンテンドーSwitch2 3位" },
+    { display: "カービィのエアライダー", accept: ["カービィのエアライダー", "かーびぃのえあらいだー", "エアライダー", "えあらいだー"], hint: "ニンテンドーSwitch2 4位" },
+    { display: "ドンキーコング バナンザ", accept: ["ドンキーコングバナンザ", "どんきーこんぐばなんざ", "バナンザ", "ばなんざ"], hint: "ニンテンドーSwitch2 5位" },
+    { display: "桃太郎電鉄2 ～あなたの町も きっとある～", accept: ["桃太郎電鉄2", "ももたろうでんてつ2", "ももたろうでんてつ2あなたのまちもきっとある"], hint: "ニンテンドーSwitch2 6位" },
+    { display: "ドラゴンクエストVII Reimagined", accept: ["ドラゴンクエスト7リイマジンド", "どらごんくえすと7りいまじんど"], hint: "ニンテンドーSwitch2 7位" },
+    { display: "スーパー マリオパーティ ジャンボリー", accept: ["スーパーマリオパーティジャンボリー", "マリオパーティジャンボリー", "すーぱーまりおぱーてぃじゃんぼりー", "まりおぱーてぃじゃんぼりー"], hint: "ニンテンドーSwitch2 8位" },
+    { display: "ゼルダ無双 封印戦記", accept: ["ゼルダ無双封印戦記", "ぜるだむそうふういんせんき"], hint: "ニンテンドーSwitch2 9位" },
+    { display: "ドラゴンクエストI&II", accept: ["ドラゴンクエスト1アンド2", "ドラゴンクエストワンツー", "ドラゴンクエストワンアンドツー", "どらごんくえすと1あんど2", "どらごんくえすとわんつー", "どらごんくえすとわんあんどつー"], hint: "ニンテンドーSwitch2 10位" },
+
+    // === ゲームボーイ ===
+    { display: "ポケットモンスター 赤・緑", accept: ["ポケットモンスター赤・緑", "ポケットモンスター赤緑", "ポケモン赤緑", "ポケットモンスター赤", "ポケットモンスター緑", "ポケモン赤", "ポケモン緑", "ぽけっともんすたーあかみどり", "ぽけもんあかみどり", "ぽけっともんすたーあか", "ぽけっともんすたーみどり", "ぽけもんあか", "ぽけもんみどり", "あか", "みどり"], hint: "ゲームボーイ 1位" },
+    { display: "ポケットモンスター 金・銀", accept: ["ポケットモンスター金・銀", "ポケットモンスター金銀", "ポケモン金銀", "ポケットモンスター金", "ポケットモンスター銀", "ポケモン金", "ポケモン銀", "ぽけっともんすたーきんぎん", "ぽけもんきんぎん", "ぽけっともんすたーきん", "ぽけっともんすたーぎん", "ぽけもんきん", "ぽけもんぎん", "きん", "ぎん"], hint: "ゲームボーイ 2位" },
+    { display: "テトリス", accept: ["テトリス", "てとりす"], hint: "ゲームボーイ 3位" },
+    { display: "スーパーマリオランド", accept: ["スーパーマリオランド", "すーぱーまりおらんど", "マリオランド", "まりおらんど", "スーパーマリオランド1"], hint: "ゲームボーイ 4位" },
+    { display: "ポケットモンスター ピカチュウ", accept: ["ポケットモンスターピカチュウ", "ポケモンピカチュウ", "ピカチュウ版", "ピカチュウ", "ぽけっともんすたーぴかちゅう", "ぽけもんぴかちゅう", "ぴかちゅう", "ぽけっともんすたーぴかちゅうばーじょん"], hint: "ゲームボーイ 5位" },
+    { display: "スーパーマリオランド2 6つの金貨", accept: ["スーパーマリオランド26つの金貨", "スーパーマリオランド2", "すーぱーまりおらんど2", "マリオランド2", "6つの金貨", "むっつのきんか", "すーぱーまりおらんど2むっつのきんか"], hint: "ゲームボーイ 6位" },
+    { display: "ドラゴンクエストモンスターズ テリーのワンダーランド", accept: ["ドラゴンクエストモンスターズ", "テリーのワンダーランド", "テリワン", "どらごんくえすともんすたーず", "てりーのわんだーらんど", "てりわん", "dqm", "どらごんくえすともんすたーずてりーのわんだーらんど"], hint: "ゲームボーイ 7位" },
+    { display: "遊☆戯☆王デュエルモンスターズ4 最強決闘者戦記", accept: ["遊戯王4", "ゆうぎおう4", "遊戯王デュエルモンスターズ4", "デュエルモンスターズ4", "ゆうぎおうでゅえるもんすたーず4", "ゆうぎおうでゅえるもんすたーず4さいきょうでゅえりすとせんき"], hint: "ゲームボーイ 8位" },
+    { display: "ドクターマリオ", accept: ["ドクターマリオ", "どくたーまりお", "drマリオ", "dr.マリオ"], hint: "ゲームボーイ 9位" },
+    { display: "ポケットモンスター 青", accept: ["ポケットモンスター青", "ポケモン青", "ぽけっともんすたーあお", "ぽけもんあお", "あお"], hint: "ゲームボーイ 10位" },
+
+    // === ゲームボーイアドバンス ===
+    { display: "ポケットモンスター ルビー・サファイア", accept: ["ポケットモンスタールビー・サファイア", "ポケットモンスタールビーサファイア", "ポケモンルビーサファイア", "ポケモンrs", "rs", "ポケットモンスタールビー", "ポケットモンスターサファイア", "ポケモンルビー", "ポケモンサファイア", "ぽけっともんすたーるびーさふぁいあ", "ぽけもんるびーさふぁいあ", "ぽけっともんすたーるびー", "ぽけっともんすたーさふぁいあ", "ぽけもんるびー", "ぽけもんさふぁいあ", "ルビー", "サファイア", "るびー", "さふぁいあ"], hint: "ゲームボーイアドバンス 1位" },
+    { display: "ポケットモンスター ファイアレッド・リーフグリーン", accept: ["ポケットモンスターファイアレッド・リーフグリーン", "ポケットモンスターファイアレッドリーフグリーン", "ポケモンファイアレッドリーフグリーン", "ポケモンfrlg", "frlg", "ポケットモンスターファイアレッド", "ポケットモンスターリーフグリーン", "ポケモンファイアレッド", "ポケモンリーフグリーン", "ぽけっともんすたーふぁいあれっどりーふぐりーん", "ぽけもんふぁいあれっどりーふぐりーん", "ぽけっともんすたーふぁいあれっど", "ぽけっともんすたーりーふぐりーん", "ぽけもんふぁいあれっど", "ぽけもんりーふぐりーん", "ファイアレッド", "リーフグリーン", "ふぁいあれっど", "りーふぐりーん"], hint: "ゲームボーイアドバンス 2位" },
+    { display: "ポケットモンスター エメラルド", accept: ["ポケットモンスターエメラルド", "ポケモンエメラルド", "エメラルド", "えめらるど", "ぽけっともんすたーえめらるど", "ぽけもんえめらるど"], hint: "ゲームボーイアドバンス 3位" },
+    { display: "ファミコンミニ スーパーマリオブラザーズ", accept: ["ファミコンミニスーパーマリオブラザーズ", "ファミコンミニマリオ", "ふぁみこんみにすーぱーまりおぶらざーず", "スーパーマリオブラザーズ", "すーぱーまりおぶらざーず"], hint: "ゲームボーイアドバンス 4位" },
+    { display: "マリオカートアドバンス", accept: ["マリオカートアドバンス", "まりおかーとあどばんす", "マリカアドバンス", "まりかあどばんす", "マリカ"], hint: "ゲームボーイアドバンス 5位" },
+    { display: "ロックマン エグゼ4", accept: ["ロックマンエグゼ4", "ろっくまんえぐぜ4", "エグゼ4", "えぐぜ4", "ブルームーン", "レッドサン", "ぶるーむーん", "れっどさん"], hint: "ゲームボーイアドバンス 6位" },
+    { display: "スーパーマリオアドバンス2", accept: ["スーパーマリオアドバンス2", "すーぱーまりおあどばんす2", "マリオアドバンス2", "まりおあどばんす2", "マリアド2"], hint: "ゲームボーイアドバンス 7位" },
+    { display: "スーパーマリオアドバンス", accept: ["スーパーマリオアドバンス", "すーぱーまりおあどばんす", "マリオアドバンス", "まりおあどばんす", "マリアド", "スーパーマリオアドバンス1", "マリアド1"], hint: "ゲームボーイアドバンス 8位" },
+    { display: "星のカービィ 夢の泉デラックス", accept: ["星のカービィ夢の泉デラックス", "ほしのかーびぃゆめのいずみでらっくす", "夢の泉デラックス", "ゆめのいずみでらっくす"], hint: "ゲームボーイアドバンス 9位" },
+    { display: "スーパーマリオアドバンス4", accept: ["スーパーマリオアドバンス4", "すーぱーまりおあどばんす4", "マリオアドバンス4", "まりおあどばんす4", "マリアド4"], hint: "ゲームボーイアドバンス 10位" },
+
+    // === ニンテンドーDS ===
+    { display: "New スーパーマリオブラザーズ", accept: ["newスーパーマリオブラザーズ", "ニュースーパーマリオブラザーズ", "にゅーすーぱーまりおぶらざーず", "ニューマリオ", "にゅーまりお"], hint: "ニンテンドーDS 1位" },
+    { display: "ポケットモンスター ダイヤモンド・パール", accept: ["ポケットモンスターダイヤモンド・パール", "ポケットモンスターダイヤモンドパール", "ポケモンダイヤモンドパール", "ポケモンdp", "dp", "ポケットモンスターダイヤモンド", "ポケットモンスターパール", "ポケモンダイヤモンド", "ポケモンパール", "ぽけっともんすたーだいやもんどぱーる", "ぽけもんだいやもんどぱーる", "ぽけっともんすたーだいやもんど", "ぽけっともんすたーぱーる", "ぽけもんだいやもんど", "ぽけもんぱーる", "だいやもんど", "ぱーる"], hint: "ニンテンドーDS 2位" },
+    { display: "ポケットモンスター ブラック・ホワイト", accept: ["ポケットモンスターブラック・ホワイト", "ポケットモンスターブラックホワイト", "ポケモンブラックホワイト", "ポケモンbw", "bw", "ポケットモンスターブラック", "ポケットモンスターホワイト", "ポケモンブラック", "ポケモンホワイト", "ぽけっともんすたーぶらっくほわいと", "ぽけもんぶらっくほわいと", "ぽけっともんすたーぶらっく", "ぽけっともんすたーほわいと", "ぽけもんぶらっく", "ぽけもんほわいと", "ぶらっく", "ほわいと"], hint: "ニンテンドーDS 3位" },
+    { display: "おいでよ どうぶつの森", accept: ["おいでよどうぶつの森", "おいでよどうぶつのもり", "おい森", "おいもり", "どうぶつの森", "どうぶつのもり"], hint: "ニンテンドーDS 4位" },
+    { display: "もっと脳を鍛える大人のDSトレーニング", accept: ["もっと脳を鍛える大人のdsトレーニング", "もっと脳を鍛える大人のdsとれーにんぐ", "もっと脳トレ", "もっとのうとれ", "もっとのうをきたえるおとなのでぃーえすとれーにんぐ"], hint: "ニンテンドーDS 5位" },
+    { display: "ドラゴンクエスト9 星空の守り人", accept: ["ドラゴンクエスト9", "ドラクエ9", "どらごんくえすと9", "どらくえ9", "ドラゴンクエストix", "ドラゴンクエスト9星空の守り人"], hint: "ニンテンドーDS 6位" },
+    { display: "マリオカートDS", accept: ["マリオカートds", "まりおかーとds", "マリカds", "まりかds", "まりおかーとでぃーえす"], hint: "ニンテンドーDS 7位" },
+    { display: "ポケットモンスター ハートゴールド・ソウルシルバー", accept: ["ポケットモンスターハートゴールド・ソウルシルバー", "ポケットモンスターハートゴールドソウルシルバー", "ポケモンハートゴールドソウルシルバー", "ポケモンhgss", "hgss", "ポケットモンスターハートゴールド", "ポケットモンスターソウルシルバー", "ポケモンハートゴールド", "ポケモンソウルシルバー", "ぽけっともんすたーはーとごーるどそうるしるばー", "ぽけもんはーとごーるどそうるしるばー", "ぽけっともんすたーはーとごーるど", "ぽけっともんすたーそうるしるばー", "ぽけもんはーとごーるど", "ぽけもんそうるしるばー", "ハートゴールド", "ソウルシルバー", "はーとごーるど", "そうるしるばー"], hint: "ニンテンドーDS 8位" },
+    { display: "脳を鍛える大人のDSトレーニング", accept: ["脳を鍛える大人のdsトレーニング", "脳を鍛える大人のdsとれーにんぐ", "脳トレ", "のうとれ", "のうをきたえるおとなのでぃーえすとれーにんぐ"], hint: "ニンテンドーDS 9位" },
+    { display: "トモダチコレクション", accept: ["トモダチコレクション", "ともだちこれくしょん", "トモコレ", "ともこれ"], hint: "ニンテンドーDS 10位" },
+
+    // === ニンテンドー3DS ===
+    { display: "ポケットモンスター X・Y", accept: ["ポケットモンスターx・y", "ポケットモンスターxy", "ポケモンxy", "えっくすわい", "ポケットモンスターx", "ポケットモンスターy", "ポケモンx", "ポケモンy", "ぽけっともんすたーえっくすわい", "ぽけもんえっくすわい", "ぽけっともんすたーえっくす", "ぽけっともんすたーわい", "ぽけもんえっくす", "ぽけもんわい"], hint: "ニンテンドー3DS 1位" },
+    { display: "とびだせ どうぶつの森", accept: ["とびだせどうぶつの森", "とびだせどうぶつのもり", "とび森", "とびもり", "どうぶつの森", "どうぶつのもり"], hint: "ニンテンドー3DS 2位" },
+    { display: "ポケットモンスター サン・ムーン", accept: ["ポケットモンスターサン・ムーン", "ポケットモンスターサンムーン", "ポケモンサンムーン", "サン・ムーン", "ポケットモンスターサン", "ポケットモンスタームーン", "ポケモンサン", "ポケモンムーン", "ぽけっともんすたーさんむーん", "ぽけもんさんむーん", "ぽけっともんすたーさん", "ぽけっともんすたーむーん", "ぽけもんさん", "ぽけもんむーん"], hint: "ニンテンドー3DS 3位" },
+    { display: "モンスターハンター4", accept: ["モンスターハンター4", "もんすたーはんたー4", "モンハン4", "mh4", "もんはん4"], hint: "ニンテンドー3DS 4位" },
+    { display: "妖怪ウォッチ2 元祖／本家", accept: ["妖怪ウォッチ2元祖／本家", "妖怪ウォッチ2元祖本家", "ようかいうぉっち2", "妖怪ウォッチ2", "元祖", "本家", "がんそ", "ほんけ", "ようかいうぉっち2がんそほんけ"], hint: "ニンテンドー3DS 5位" },
+    { display: "ポケットモンスター オメガルビー・アルファサファイア", accept: ["ポケットモンスターオメガルビー・アルファサファイア", "ポケモンオメガルビーアルファサファイア", "ポケモンoras", "oras", "オメガルビー", "アルファサファイア", "ぽけっともんすたーおめがるびーあるふぁさふぁいあ", "ぽけもんおめがるびーあるふぁさふぁいあ", "ぽけっともんすたーおめがるびー", "ぽけっともんすたーあるふぁさふぁいあ", "ぽけもんおめがるびー", "ぽけもんあるふぁさふぁいあ", "おめがるびー", "あるふぁさふぁいあ"], hint: "ニンテンドー3DS 6位" },
+    { display: "マリオカート7", accept: ["マリオカート7", "まりおかーと7", "マリカ7", "まりか7"], hint: "ニンテンドー3DS 7位" },
+    { display: "モンスターハンタークロス", accept: ["モンスターハンタークロス", "もんすたーはんたーくろす", "モンハンクロス", "モンハンx", "mhx", "もんはんくろす", "もんはんえっくす"], hint: "ニンテンドー3DS 8位" },
+    { display: "妖怪ウォッチ2 真打", accept: ["妖怪ウォッチ2真打", "ようかいうぉっち2しんうち", "真打", "しんうち", "ようかいうぉっち2"], hint: "ニンテンドー3DS 9位" },
+    { display: "New スーパーマリオブラザーズ 2", accept: ["newスーパーマリオブラザーズ2", "ニュースーパーマリオブラザーズ2", "にゅーすーぱーまりおぶらざーず2", "ニューマリオ2", "にゅーまりお2"], hint: "ニンテンドー3DS 10位" },
+
+    // === PlayStation 1 ===
+    { display: "ドラゴンクエスト7 エデンの戦士たち", accept: ["ドラゴンクエスト7", "ドラクエ7", "どらごんくえすと7", "どらくえ7", "ドラゴンクエストvii"], hint: "プレイステーション 1位" },
+    { display: "ファイナルファンタジー8", accept: ["ファイナルファンタジー8", "ふぁいなるふぁんたじー8", "ファイナルファンタジーviii", "ff8"], hint: "プレイステーション 2位" },
+    { display: "ファイナルファンタジー7", accept: ["ファイナルファンタジー7", "ふぁいなるふぁんたじー7", "ファイナルファンタジーvii", "ff7"], hint: "プレイステーション 3位" },
+    { display: "ファイナルファンタジー9", accept: ["ファイナルファンタジー9", "ふぁいなるふぁんたじー9", "ファイナルファンタジーix", "ff9"], hint: "プレイステーション 4位" },
+    { display: "グランツーリスモ", accept: ["グランツーリスモ", "ぐらんつーりすも", "gt", "グランツーリスモ1", "gt1"], hint: "プレイステーション 5位" },
+    { display: "バイオハザード2", accept: ["バイオハザード2", "ばいおはざーど2", "バイオ2"], hint: "プレイステーション 6位" },
+    { display: "みんなのGOLF", accept: ["みんなのgolf", "みんなのゴルフ", "みんごる", "みんgol"], hint: "プレイステーション 7位" },
+    { display: "ダービースタリオン", accept: ["ダービースタリオン", "だーびーすたりおん", "ダビスタ", "だびすた"], hint: "プレイステーション 8位" },
+    { display: "グランツーリスモ2", accept: ["グランツーリスモ2", "ぐらんつーりすも2", "gt2"], hint: "プレイステーション 9位" },
+    { display: "バイオハザード3 LAST ESCAPE", accept: ["バイオハザード3", "ばいおはざーど3", "バイオ3", "バイオハザード3ラストエスケープ"], hint: "プレイステーション 10位" },
+
+    // === PlayStation 2 ===
+    { display: "ドラゴンクエスト8 空と海と大地と呪われし姫君", accept: ["ドラゴンクエスト8", "ドラクエ8", "どらごんくえすと8", "どらくえ8", "ドラゴンクエストviii"], hint: "プレイステーション2 1位" },
+    { display: "ファイナルファンタジー10", accept: ["ファイナルファンタジー10", "ふぁいなるふぁんたじー10", "ファイナルファンタジーx", "ff10"], hint: "プレイステーション2 2位" },
+    { display: "ファイナルファンタジー12", accept: ["ファイナルファンタジー12", "ふぁいなるふぁんたじー12", "ファイナルファンタジーxii", "ff12"], hint: "プレイステーション2 3位" },
+    { display: "ファイナルファンタジー10-2", accept: ["ファイナルファンタジー10-2", "ふぁいなるふぁんたじー10つー", "ふぁいなるふぁんたじー10-2", "ファイナルファンタジーx-2", "ff10-2"], hint: "プレイステーション2 4位" },
+    { display: "ドラゴンクエスト5 天空の花嫁", accept: ["ドラゴンクエスト5", "ドラクエ5", "どらごんくえすと5", "どらくえ5", "ドラゴンクエストv"], hint: "プレイステーション2 5位" },
+    { display: "グランツーリスモ3 A-spec", accept: ["グランツーリスモ3", "ぐらんつーりすも3", "gt3"], hint: "プレイステーション2 6位" },
+    { display: "真・三國無双3", accept: ["真三國無双3", "しんさんごくむそう3", "三國無双3", "さんごくむそう3", "無双3"], hint: "プレイステーション2 7位" },
+    { display: "キングダム ハーツ2", accept: ["キングダムハーツ2", "きんぐだむはーつ2", "キングダムハーツ", "kh2"], hint: "プレイステーション2 8位" },
+    { display: "ワールドサッカー ウイニングイレブン6", accept: ["ワールドサッカーウイニングイレブン6", "ウイニングイレブン6", "ういにんぐいれぶん6", "ウイイレ6", "ういいれ6"], hint: "プレイステーション2 9位" },
+    { display: "ワールドサッカー ウイニングイレブン7", accept: ["ワールドサッカーウイニングイレブン7", "ウイニングイレブン7", "ういにんぐいれぶん7", "ウイイレ7", "ういいれ7"], hint: "プレイステーション2 10位" },
+
+    // === PlayStation 3 ===
+    { display: "ファイナルファンタジー13", accept: ["ファイナルファンタジー13", "ふぁいなるふぁんたじー13", "ファイナルファンタジーxiii", "ff13"], hint: "プレイステーション3 1位" },
+    { display: "ファイナルファンタジー13-2", accept: ["ファイナルファンタジー13-2", "ふぁいなるふぁんたじー13つー", "ふぁいなるふぁんたじー13-2", "ファイナルファンタジーxiii-2", "ff13-2"], hint: "プレイステーション3 2位" },
+    { display: "バイオハザード6", accept: ["バイオハザード6", "ばいおはざーど6", "バイオ6"], hint: "プレイステーション3 3位" },
+    { display: "ワンピース 海賊無双", accept: ["ワンピース海賊無双", "海賊無双", "わんぴーすかいぞくむそう", "かいぞくむそう"], hint: "プレイステーション3 4位" },
+    { display: "グランド・セフト・オート5", accept: ["グランドセフトオート5", "ぐらんどせふとおーと5", "グラセフ5", "gta5"], hint: "プレイステーション3 5位" },
+    { display: "メタルギア ソリッド 4 ガンズ・オブ・ザ・パトリオット", accept: ["メタルギアソリッド4ガンズオブザパトリオット", "メタルギアソリッド4", "めたるぎあそりっど4", "mgs4"], hint: "プレイステーション3 6位" },
+    { display: "テイルズ オブ エクシリア", accept: ["テイルズオブエクシリア", "ているずおぶえくしりあ", "エクシリア", "tox"], hint: "プレイステーション3 7位" },
+    { display: "グランツーリスモ5", accept: ["グランツーリスモ5", "ぐらんつーりすも5", "gt5"], hint: "プレイステーション3 8位" },
+    { display: "龍が如く5 夢、叶えし者", accept: ["龍が如く5", "りゅうがごとく5", "りゅうがごとく5ゆめかなえしもの"], hint: "プレイステーション3 9位" },
+    { display: "龍が如く4 伝説を継ぐもの", accept: ["龍が如く4", "りゅうがごとく4", "りゅうがごとく4でんせつをつぐもの"], hint: "プレイステーション3 10位" },
+
+    // === PlayStation 4 ===
+    { display: "モンスターハンター：ワールド", accept: ["モンスターハンターワールド", "モンハンワールド", "もんすたーはんたーわーるど"], hint: "プレイステーション4 1位" },
+    { display: "ドラゴンクエスト11 過ぎ去りし時を求めて", accept: ["ドラゴンクエスト11", "ドラクエ11", "どらごんくえすと11", "どらくえ11", "ドラゴンクエストxi"], hint: "プレイステーション4 2位" },
+    { display: "ファイナルファンタジーXV", accept: ["ファイナルファンタジー15", "ふぁいなるふぁんたじー15", "FF15"], hint: "プレイステーション4 3位" },
+    { display: "ファイナルファンタジーVII リメイク", accept: ["ファイナルファンタジー7リメイク", "ふぁいなるふぁんたじー7りめいく"], hint: "プレイステーション4 4位" },
+    { display: "キングダム ハーツIII", accept: ["キングダムハーツ3", "きんぐだむはーつ3"], hint: "プレイステーション4 5位" },
+    { display: "コール オブ デューティ ブラックオプス 4", accept: ["コールオブデューティブラックオプス4", "コールオブデューティ4", "こーるおぶでゅーてぃぶらっくおぷす4", "こーるおぶでゅーてぃ4"], hint: "プレイステーション4 6位" },
+    { display: "モンスターハンターワールド：アイスボーン", accept: ["モンスターハンターワールドアイスボーン", "アイスボーン", "もんすたーはんたーわーるどあいすぼーん", "あいすぼーん"], hint: "プレイステーション4 7位" },
+    { display: "Ghost of Tsushima", accept: ["ゴーストオブツシマ", "ごーすとおぶつしま"], hint: "プレイステーション4 8位" },
+    { display: "メタルギア ソリッド V ファントムペイン", accept: ["メタルギアソリッド5ファントムペイン", "メタルギアソリッド5", "めたるぎあそりっど5", "めたるぎあそりっど5ふぁんとむぺいん"], hint: "プレイステーション4 9位" },
+    { display: "Minecraft", accept: ["マインクラフト", "まいんくらふと"], hint: "プレイステーション4 10位" },
+
+    // === PlayStation 5 ===
+    { display: "モンスターハンターワイルズ", accept: ["モンスターハンターワイルズ", "モンハンワイルズ", "もんすたーはんたーわいるず"], hint: "プレイステーション5 1位" },
+    { display: "ファイナルファンタジーXVI", accept: ["ファイナルファンタジー16", "FF16", "ふぁいなるふぁんたじー16"], hint: "プレイステーション5 2位" },
+    { display: "グランツーリスモ7", accept: ["グランツーリスモ7", "ぐらんつーりすも7"], hint: "プレイステーション5 3位" },
+    { display: "ファイナルファンタジー7 リバース", accept: ["ファイナルファンタジー7リバース", "FF7リバース", "ふぁいなるふぁんたじー7りばーす", "ふぁいなるふぁんたじーせぶんりばーす"], hint: "プレイステーション5 4位" },
+    { display: "Marvel’s Spider-Man 2", accept: ["マーベルスパイダーマン2", "スパイダーマン2", "まーべるすぱいだーまん2", "すぱいだーまん2"], hint: "プレイステーション5 5位" },
+    { display: "ドラゴンクエスト3 そして伝説へ…", accept: ["ドラゴンクエスト3", "ドラクエ3", "どらごんくえすと3", "どらくえ3", "ドラゴンクエストiii"], hint: "プレイステーション5 6位" },
+    { display: "Ghost of Yotei", accept: ["ゴーストオブヨーテイ", "ごーすとおぶよーてい"], hint: "プレイステーション5 7位" },
+    { display: "バイオハザード レクイエム", accept: ["バイオハザードレクイエム", "ばいおはざーどれくいえむ"], hint: "プレイステーション5 8位" },
+    { display: "ホグワーツ・レガシー", accept: ["ホグワーツレガシー", "ほぐわーつれがしー"], hint: "プレイステーション5 9位" },
+    { display: "Horizon Forbidden West", accept: ["ホライゾン", "ほらいぞん"], hint: "プレイステーション5 10位" }
+];
+
+let foundCount = 0;
+let isGameOver = false;
+let isProcessing = false; // 連鎖演出中の連続入力を防ぐフラグ
+let answeredIndices = new Set();
+
+const input = document.getElementById('answerInput');
+const remainingText = document.getElementById('remaining');
+const totalText = document.getElementById('total');
+const listContainer = document.getElementById('answerList');
+const messageEl = document.getElementById('message');
+const giveupBtn = document.getElementById('giveupBtn');
+const retryBtn = document.getElementById('retryBtn');
+const limitFill = document.getElementById('limitFill');
+const label = document.getElementById('progressPercent');
+
+function getHardClass(hint) {
+    if (hint.includes("スーパーファミコン")) return "sfc-card";
+    if (hint.includes("ファミコン")) return "fc-card";
+    if (hint.includes("ニンテンドー64")) return "n64-card";
+    if (hint.includes("ゲームキューブ")) return "gc-card";
+    if (hint.includes("Wii")) return "wii-card";
+    if (hint.includes("Switch2")) return "sw2-card";
+    if (hint.includes("Switch")) return "sw-card";
+    if (hint.includes("ゲームボーイアドバンス")) return "gba-card";
+    if (hint.includes("ゲームボーイ")) return "gb-card";
+    if (hint.includes("3DS")) return "tds-card";
+    if (hint.includes("DS")) return "ds-card";
+    if (hint.includes("プレイステーション5")) return "ps5-card";
+    if (hint.includes("プレイステーション4")) return "ps4-card";
+    if (hint.includes("プレイステーション3")) return "ps3-card";
+    if (hint.includes("プレイステーション2")) return "ps2-card";
+    if (hint.includes("プレイステーション")) return "ps1-card";
+    return "";
+}
+
+function updateLimitGauge() {
+    const percent = Math.floor((foundCount / quizData.length) * 100);
+    if (limitFill) limitFill.style.width = percent + "%";
+    if (label) label.textContent = percent + "%";
+}
+
+function init() {
+    foundCount = 0;
+    isGameOver = false;
+    isProcessing = false;
+    answeredIndices.clear();
+    listContainer.innerHTML = '';
+    input.disabled = false;
+    input.value = '';
+    input.placeholder = config.placeholderNormal;
+    giveupBtn.style.display = 'inline-block';
+    retryBtn.style.display = 'none';
+    remainingText.textContent = quizData.length;
+    totalText.textContent = quizData.length;
+    messageEl.textContent = '';
+
+    quizData.forEach((item, index) => {
+        const div = document.createElement('div');
+        let hardClass = getHardClass(item.hint);
+        div.className = `item ${hardClass}`;
+        div.id = 'target-' + index;
+        div.innerHTML = `<div class="hint-text">${item.hint}</div><div class="answer-text">？？？？</div>`;
+        listContainer.appendChild(div);
+    });
+
+    loadProgress();
+    updateLimitGauge();
+}
+
+function loadProgress() {
+    const savedData = localStorage.getItem(config.storageKey);
+    if (savedData) {
+        const savedIndices = JSON.parse(savedData);
+        savedIndices.forEach(index => {
+            if (index < quizData.length) {
+                answeredIndices.add(index);
+                updateItemDisplay(index, true);
+                foundCount++;
+            }
+        });
+        remainingText.textContent = quizData.length - foundCount;
+        if (foundCount > 0) showMessage("前回の続きから復元しました！", "#34495e");
+    }
+}
+
+function saveProgress() {
+    localStorage.setItem(config.storageKey, JSON.stringify(Array.from(answeredIndices)));
+}
+
+// 指定したミリ秒だけ待機するヘルパー関数
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// === 1秒かけて滑らかにスクロールするカスタム関数 ===
+function customSmoothScroll(target, duration = 1000) {
+    const targetY = target instanceof HTMLElement 
+        ? window.scrollY + target.getBoundingClientRect().top - (window.innerHeight / 2) + (target.offsetHeight / 2)
+        : target;
+    const startY = window.scrollY;
+    const distance = targetY - startY;
+    let startTime = null;
+
+    function animation(currentTime) {
+        if (!startTime) startTime = currentTime;
+        const timeElapsed = currentTime - startTime;
+        const progress = Math.min(timeElapsed / duration, 1);
+        
+        // 滑らかなイージング (easeInOutQuad)
+        const ease = progress < 0.5 ? 2 * progress * progress : -1 + (4 - 2 * progress) * progress;
+        window.scrollTo(0, startY + distance * ease);
+
+        if (timeElapsed < duration) {
+            requestAnimationFrame(animation);
+        }
+    }
+    requestAnimationFrame(animation);
+}
+
+input.addEventListener('keypress', async (e) => {
+    if (e.key === 'Enter' && !isGameOver && !isProcessing) {
+        const val = input.value.trim().toLowerCase();
+        if (val === "") return;
+        
+        let targetIndices = [];
+        quizData.forEach((item, index) => {
+            if (item.accept.some(a => a.toLowerCase() === val)) {
+                targetIndices.push(index);
+            }
+        });
+
+        if (targetIndices.length > 0) {
+            let newlyFoundIndices = [];
+            let alreadyAnswered = true;
+
+            // 未解答のインデックスを抽出
+            targetIndices.forEach(idx => {
+                if (!answeredIndices.has(idx)) {
+                    newlyFoundIndices.push(idx);
+                    alreadyAnswered = false;
+                }
+            });
+
+            if (newlyFoundIndices.length > 0) {
+                isProcessing = true; // 連鎖開示が完了するまで入力をガード
+                input.value = '';
+                input.placeholder = "開示中...";
+
+                // 未解答だったものを1つずつ時間差で開いていく
+                for (let i = 0; i < newlyFoundIndices.length; i++) {
+                    const idx = newlyFoundIndices[i];
+                    
+                    answeredIndices.add(idx);
+                    updateItemDisplay(idx, true);
+                    foundCount++;
+
+                    remainingText.textContent = quizData.length - foundCount;
+                    showMessage("正解！", "#4caf50");
+                    updateLimitGauge();
+
+                    // 【修正点】ブラウザ標準の追従を廃止し、自作の1秒カスタムスクロールに変更！
+                    const currentTargetEl = document.getElementById('target-' + idx);
+                    if (currentTargetEl) {
+                        customSmoothScroll(currentTargetEl, 1000);
+                    }
+
+                    // 1秒かけて次の開示・スクロールへ進む（テンポをゆっくりに同期）
+                    if (i < newlyFoundIndices.length - 1) {
+                        await sleep(1000);
+                    }
+                }
+
+                saveProgress();
+                isProcessing = false;
+                input.placeholder = config.placeholderNormal;
+                input.focus();
+
+                if (foundCount === quizData.length) finishGame("全問正解！神レベルの知識量です！おめでとう！", "#4caf50");
+            } else if (alreadyAnswered) {
+                showMessage("既に入力されています", "#777");
+                // 既に入力されている時の追尾も1秒かけてじわっと移動
+                const existTargetEl = document.getElementById('target-' + targetIndices[0]);
+                if (existTargetEl) {
+                    customSmoothScroll(existTargetEl, 1000);
+                }
+                input.value = '';
+            }
+        } else {
+            showMessage("違います", "#f44336");
+            input.value = '';
+        }
+    }
+});
+
+function updateItemDisplay(index, isCorrect) {
+    const targetEl = document.getElementById('target-' + index);
+    const data = quizData[index];
+    targetEl.innerHTML = `
+        <div class="hint-text">${data.hint}</div>
+        <div class="answer-text">${data.display}</div>
+    `;
+    if (isCorrect) {
+        targetEl.classList.add('found');
+    } else {
+        targetEl.classList.add('missed');
+    }
+}
+
+giveupBtn.addEventListener('click', () => {
+    if (isProcessing) return;
+    quizData.forEach((item, index) => { if (!answeredIndices.has(index)) updateItemDisplay(index, false); });
+    finishGame("ギブアップ！", "#f44336");
+});
+
+retryBtn.addEventListener('click', () => {
+    if(confirm("全ての解答記録を消去して、最初からやり直しますか？")) { 
+        localStorage.removeItem(config.storageKey);
+        init(); 
+    }
+});
+
+function finishGame(msg, color) {
+    isGameOver = true;
+    input.disabled = true;
+    input.placeholder = config.placeholderGameOver;
+    giveupBtn.style.display = 'none';
+    retryBtn.style.display = 'inline-block';
+    showMessage(msg, color);
+}
+
+function showMessage(text, color) {
+    messageEl.textContent = text;
+    messageEl.style.color = color;
+    if (!isGameOver) setTimeout(() => { if (messageEl.textContent === text) messageEl.textContent = ""; }, 1500);
+}
+
+init();
+</script>
+
+</body>
+</html>
