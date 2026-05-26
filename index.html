@@ -203,7 +203,7 @@
 <div class="container">
     <div class="quiz-grid">
 
-        <a href="game.html" class="quiz-card" data-quiz-key="歴代ゲームハード別 売上ランキングTOP10 いえるかな" data-total="170">
+        <a href="game.html" class="quiz-card" data-quiz-key="game_sales_mega_quiz_v3" data-total="170">
             <div class="card-content">
                 <span class="category-tag">Game</span>
                 <h2>歴代ゲームハード別 売上ランキングTOP10 いえるかな</h2>
@@ -626,8 +626,8 @@
             const total = parseInt(card.getAttribute('data-total'));
             if (!quizKey || isNaN(total)) return;
 
-            const storageKey = "quiz_save_" + quizKey;
-            const savedData = localStorage.getItem(storageKey);
+const storageKey = quizKey.startsWith("game_sales_") ? quizKey : "quiz_save_" + quizKey;
+const savedData = localStorage.getItem(storageKey);
             
             if (savedData) {
                 try {
